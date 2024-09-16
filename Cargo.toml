@@ -9,6 +9,7 @@ std = []
 
 [dependencies]
 embedded-hal = "1.0.0"
+log = "0.4.22"
 
 [dev-dependencies]
 esp-idf-hal = "0.44.1"

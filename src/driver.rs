@@ -84,7 +84,7 @@ where
     /// Sends a command to the ADS1256
     fn send_command(&mut self, command: u8) -> Result<(), Ads1256Error<SpiError, GpioError>> {
         self.cs.set_low().map_err(Ads1256Error::Gpio)?;
-        self.wait_for_drdy()?; // Ensure ADS1256 is ready
+        log::debug!("Sending command: 0x{:02X}", command);
         self.spi.write(&[command]).map_err(Ads1256Error::Spi)?;
         self.cs.set_high().map_err(Ads1256Error::Gpio)?;
         Ok(())
@@ -132,7 +132,9 @@ where
 
     /// Waits for DRDY pin to go low
     fn wait_for_drdy(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
-        while self.drdy.is_high().map_err(Ads1256Error::Gpio)? {}
+        while self.drdy.is_high().map_err(Ads1256Error::Gpio)? {
+            log::info!("Waiting for DRDY to go low...");
+        }
         Ok(())
     }
 
@@ -177,7 +179,12 @@ where
 
     /// Sets the input multiplexer for single-ended input
     pub fn set_channel(&mut self, channel: u8) -> Result<(), Ads1256Error<SpiError, GpioError>> {
-        self.set_input_channel(channel, 0x08) // 0x08 corresponds to AINCOM
+        let mux = channel & 0x07; // Adjust based on your channel mapping
+        log::info!("Setting channel: {}", mux);
+        self.write_register(REG_MUX, &[mux])?;
+        self.send_command(CMD_SYNC)?;
+        self.send_command(CMD_WAKEUP)?;
+        Ok(())
     }
 
     /// Sets the input multiplexer for differential input
