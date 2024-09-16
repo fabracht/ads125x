@@ -1,5 +1,3 @@
-// src/driver.rs
-
 use crate::constants::*;
 use crate::constants::{DataRate, Gain};
 use crate::error::Ads1256Error;

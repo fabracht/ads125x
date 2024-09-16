@@ -1,5 +1,3 @@
-// src/constants.rs
-
 /// ADS1256 Commands
 pub const CMD_WAKEUP: u8 = 0x00;
 pub const CMD_RDATA: u8 = 0x01;

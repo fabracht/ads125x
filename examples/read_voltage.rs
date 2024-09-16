@@ -1,5 +1,3 @@
-// src/main.rs
-
 use embedded_hal::spi::SpiDevice;
 use esp_idf_hal::delay::Ets;
 use esp_idf_hal::gpio::{InputPin, OutputPin};
