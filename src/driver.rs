@@ -84,7 +84,7 @@ where
     /// Sends a command to the ADS1256
     fn send_command(&mut self, command: u8) -> Result<(), Ads1256Error<SpiError, GpioError>> {
         self.cs.set_low().map_err(Ads1256Error::Gpio)?;
-        log::debug!("Sending command: 0x{:02X}", command);
+        log::info!("Sending command: 0x{:02X}", command);
         self.spi.write(&[command]).map_err(Ads1256Error::Spi)?;
         self.cs.set_high().map_err(Ads1256Error::Gpio)?;
         Ok(())
