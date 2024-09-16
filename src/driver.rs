@@ -1,14 +1,16 @@
 // src/driver.rs
 
+use crate::constants::*;
+use crate::constants::{DataRate, Gain};
+use crate::error::Ads1256Error;
+use core::result::Result;
+use core::result::Result::Ok;
+
 use embedded_hal::{
     delay::DelayNs,
     digital::{InputPin, OutputPin},
     spi::SpiDevice,
 };
-
-use crate::constants::*;
-use crate::constants::{DataRate, Gain};
-use crate::error::Ads1256Error;
 
 /// ADS1256 driver
 pub struct Ads1256<SPI, CS, DRDY, PDWN, DELAY> {
