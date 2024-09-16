@@ -152,6 +152,7 @@ where
 
         // Convert 24-bit data to signed 32-bit integer
         let raw_value = ((buffer[0] as i32) << 16) | ((buffer[1] as i32) << 8) | (buffer[2] as i32);
+        log::info!("Raw value {}", raw_value);
         // Sign extension for negative values
         let value = if raw_value & 0x800000 != 0 {
             raw_value | !0xFFFFFF
