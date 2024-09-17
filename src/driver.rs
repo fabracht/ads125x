@@ -204,9 +204,14 @@ where
         self.spi.read(&mut buffer).map_err(Ads1256Error::Spi)?;
         self.cs.set_high().map_err(Ads1256Error::Gpio)?;
 
+        log::info!(
+            "Raw data: {:02X} {:02X} {:02X}",
+            buffer[0],
+            buffer[1],
+            buffer[2]
+        );
         // Convert 24-bit data to signed 32-bit integer
         let raw_value = ((buffer[0] as i32) << 16) | ((buffer[1] as i32) << 8) | (buffer[2] as i32);
-        log::info!("Raw value {}", raw_value);
         // Sign extension for negative values
         let value = if raw_value & 0x800000 != 0 {
             raw_value | !0xFFFFFF
