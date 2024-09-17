@@ -387,6 +387,14 @@ where
 {
     // Perform a system offset calibration (requires zero differential input)
     pub fn system_offset_calibrate(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
+        // Step 1: Configure inputs for zero differential input
+        // For example, short AIN0 and AIN1
+        self.set_input_channel(0x00, 0x00)?; // AINP = AIN0, AINN = AIN0
+
+        // Ensure that AIN0 is properly connected (e.g., connected to AGND)
+        // This may require hardware setup outside of the ADC
+
+        // Step 2: Perform calibration
         self.send_command(CMD_SYSOCAL)?;
         self.wait_for_drdy()?;
         Ok(())
@@ -394,6 +402,14 @@ where
 
     // Perform a system gain calibration (requires full-scale input)
     pub fn system_gain_calibrate(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
+        // Step 1: Configure inputs for full-scale differential input
+        self.set_input_channel(0x00, 0x01)?; // AINP = AIN0, AINN = AIN1
+
+        // Apply full-scale voltage across AIN0 and AIN1
+        // The voltage should be (±2 * VREF) / PGA
+        // Ensure that the applied voltage does not exceed the absolute maximum ratings
+
+        // Step 2: Perform calibration
         self.send_command(CMD_SYSGCAL)?;
         self.wait_for_drdy()?;
         Ok(())
