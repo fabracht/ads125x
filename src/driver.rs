@@ -92,7 +92,14 @@ where
 
         // Send reset command
         self.send_command(CMD_RESET)?;
-        self.delay.delay_ms(10);
+        self.delay.delay_ms(50); // Increased delay after reset command
+
+        // Wait for DRDY to go low
+        self.wait_for_drdy()?;
+
+        // Perform self-calibration
+        self.send_command(CMD_SELFCAL)?;
+        self.wait_for_drdy()?;
 
         Ok(())
     }
@@ -164,9 +171,10 @@ where
         self.spi
             .write(&[command, count])
             .map_err(Ads1256Error::Spi)?;
-        self.delay.delay_us(1);
+        self.delay.delay_us(5);
         self.spi.read(buffer).map_err(Ads1256Error::Spi)?;
         self.cs.set_high().map_err(Ads1256Error::Gpio)?;
+        self.delay.delay_ms(1);
         Ok(())
     }
 
