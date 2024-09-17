@@ -167,7 +167,7 @@ where
         self.spi
             .write(&[command, count])
             .map_err(Ads1256Error::Spi)?;
-        self.delay.delay_us(1);
+        self.delay.delay_us(5);
         self.spi.write(data).map_err(Ads1256Error::Spi)?;
         self.cs.set_high().map_err(Ads1256Error::Gpio)?;
         Ok(())
@@ -319,7 +319,7 @@ where
         self.send_command(CMD_SYNC)?;
 
         // Wait for minimum delay t11
-        self.delay.delay_us(10); // Adjust based on tCLKIN
+        self.delay.delay_us(100); // Adjust based on tCLKIN
 
         // Wake up the ADC
         self.send_command(CMD_WAKEUP)?;
@@ -362,7 +362,7 @@ where
         // Write MUX register and synchronize
         self.write_register(REG_MUX, &[mux])?;
         self.send_command(CMD_SYNC)?;
-        self.delay.delay_us(1); // Adjust based on tCLKIN
+        self.delay.delay_us(100); // Adjust based on tCLKIN
         self.send_command(CMD_WAKEUP)?;
 
         self.wait_for_drdy_high()?; // Wait for DRDY to go high
@@ -527,7 +527,7 @@ where
         self.pdwn.set_low().map_err(Ads1256Error::Gpio)?;
 
         // Wait for t16 (timing for the SYNC pulse), this is typically quite short, ~4 clock cycles
-        self.delay.delay_us(1); // Adjust this based on timing specs (t16)
+        self.delay.delay_us(5); // Adjust this based on timing specs (t16)
 
         // Bring SYNC/PDWN high to complete synchronization
         self.pdwn.set_high().map_err(Ads1256Error::Gpio)?;
