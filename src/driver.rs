@@ -406,7 +406,7 @@ where
     pub fn system_offset_calibrate(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
         // Step 1: Configure inputs for zero differential input
         // For example, short AIN0 and AIN1
-        self.set_input_channel(0x00, 0x00)?; // AINP = AIN0, AINN = AIN0
+        self.set_input_channel(0x00, 0x01)?; // AINP = AIN0, AINN = AIN1
 
         // Ensure that AIN0 is properly connected (e.g., connected to AGND)
         // This may require hardware setup outside of the ADC
