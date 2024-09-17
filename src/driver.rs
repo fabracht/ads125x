@@ -265,22 +265,39 @@ where
 
     /// Sets the input multiplexer for single-ended input
     pub fn set_channel(&mut self, channel: u8) -> Result<(), Ads1256Error<SpiError, GpioError>> {
-        self.wait_for_drdy()?;
+        // Check if channel number is within valid range
+        if channel > 7 {
+            return Err(Ads1256Error::InvalidInputChannel);
+        }
 
-        let positive = channel & 0x0F; // Ensure channel is within 0-15
-        let negative = 0x01; // AIN1 connected to AGND
+        // Set AINP to the desired channel (AIN0 to AIN7)
+        let positive = channel & 0x07;
+
+        // Set AINN to AINCOM (assuming AINCOM is connected via GND pins)
+        let negative = 0x08; // Code for AINCOM
+
+        // Construct MUX register value
         let mux = (positive << 4) | negative;
+
         log::info!(
-            "Setting MUX register to: 0x{:02X} (AINP = AIN{}, AINN = AIN{})",
+            "Setting MUX register to: 0x{:02X} (AINP = AIN{}, AINN = AINCOM)",
             mux,
-            positive,
-            negative
+            positive
         );
+
+        // Write to MUX register
         self.write_register(REG_MUX, &[mux])?;
+
+        // Synchronize conversions
         self.send_command(CMD_SYNC)?;
+
+        // Wait for minimum delay t11
         self.delay.delay_us(1); // Adjust based on tCLKIN
+
+        // Wake up the ADC
         self.send_command(CMD_WAKEUP)?;
 
+        // Wait for DRDY to go high and then low (new data ready)
         self.wait_for_drdy_high()?; // Wait for DRDY to go high
         self.wait_for_drdy()?; // Wait for DRDY to go low
 
