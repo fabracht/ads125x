@@ -81,6 +81,22 @@ where
         Ok(())
     }
 
+    pub fn reset(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
+        // Pull PDWN low
+        self.pdwn.set_low().map_err(Ads1256Error::Gpio)?;
+        self.delay.delay_ms(10);
+
+        // Pull PDWN high
+        self.pdwn.set_high().map_err(Ads1256Error::Gpio)?;
+        self.delay.delay_ms(10);
+
+        // Send reset command
+        self.send_command(CMD_RESET)?;
+        self.delay.delay_ms(10);
+
+        Ok(())
+    }
+
     /// Sends a command to the ADS1256
     fn send_command(&mut self, command: u8) -> Result<(), Ads1256Error<SpiError, GpioError>> {
         self.cs.set_low().map_err(Ads1256Error::Gpio)?;
