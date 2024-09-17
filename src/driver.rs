@@ -75,7 +75,6 @@ where
         self.write_register(REG_IO, &[0x00])?;
 
         // Perform self-calibration
-        self.send_command(CMD_SELFCAL)?;
         self.wait_for_drdy()?;
 
         Ok(())
