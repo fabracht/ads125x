@@ -201,7 +201,7 @@ where
             if self.drdy.is_low().map_err(Ads1256Error::Gpio)? {
                 return Ok(());
             }
-            self.delay.delay_ms(1);
+            self.delay.delay_us(100);
         }
         Err(Ads1256Error::Timeout)
     }
@@ -209,7 +209,7 @@ where
     fn wait_for_drdy_high(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
         let mut attempts = 0;
         while self.drdy.is_low().map_err(Ads1256Error::Gpio)? {
-            self.delay.delay_ms(1);
+            self.delay.delay_us(100);
             attempts += 1;
             if attempts > 1000 {
                 // Timeout after 1 second
@@ -225,7 +225,6 @@ where
 
         self.cs.set_low().map_err(Ads1256Error::Gpio)?;
         self.spi.write(&[CMD_RDATA]).map_err(Ads1256Error::Spi)?;
-        self.delay.delay_ms(1);
 
         let mut buffer = [0u8; 3];
         self.spi.read(&mut buffer).map_err(Ads1256Error::Spi)?;
@@ -320,7 +319,7 @@ where
         self.send_command(CMD_SYNC)?;
 
         // Wait for minimum delay t11
-        self.delay.delay_us(1); // Adjust based on tCLKIN
+        self.delay.delay_us(10); // Adjust based on tCLKIN
 
         // Wake up the ADC
         self.send_command(CMD_WAKEUP)?;
