@@ -75,7 +75,7 @@ where
 
         // Configure ADCON register
         // Corrected to set BUFEN (Bit 4) and avoid reserved bits
-        let adcon = 0x10 | (self.gain as u8); // Enable buffer if needed
+        let adcon = 0x00 | (self.gain as u8); // Set BUFEN as needed
         self.write_register(REG_ADCON, &[adcon])?;
 
         // Set data rate
@@ -83,6 +83,10 @@ where
 
         // Set IO register (all GPIOs as outputs)
         self.write_register(REG_IO, &[0x00])?;
+
+        // Configure MUX register for initial channel (e.g., AIN0 single-ended)
+        let mux = (0x00 << 4) | 0x08; // AINP = AIN0, AINN = AINCOM
+        self.write_register(REG_MUX, &[mux])?;
 
         // Perform self-calibration
         self.send_command(CMD_SELFCAL)?;
