@@ -204,6 +204,19 @@ where
         Err(Ads1256Error::Timeout)
     }
 
+    fn wait_for_drdy_high(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
+        let mut attempts = 0;
+        while self.drdy.is_low().map_err(Ads1256Error::Gpio)? {
+            self.delay.delay_ms(1);
+            attempts += 1;
+            if attempts > 1000 {
+                // Timeout after 1 second
+                return Err(Ads1256Error::Timeout);
+            }
+        }
+        Ok(())
+    }
+
     /// Reads raw data from the ADC
     pub fn read_data(&mut self) -> Result<i32, Ads1256Error<SpiError, GpioError>> {
         self.wait_for_drdy()?;
@@ -252,13 +265,25 @@ where
 
     /// Sets the input multiplexer for single-ended input
     pub fn set_channel(&mut self, channel: u8) -> Result<(), Ads1256Error<SpiError, GpioError>> {
+        self.wait_for_drdy()?;
+
         let positive = channel & 0x0F; // Ensure channel is within 0-15
-        let negative = 0x08; // AINCOM
+        let negative = 0x01; // AIN1 connected to AGND
         let mux = (positive << 4) | negative;
-        log::info!("Setting MUX register to: 0x{:02X}", mux);
+        log::info!(
+            "Setting MUX register to: 0x{:02X} (AINP = AIN{}, AINN = AIN{})",
+            mux,
+            positive,
+            negative
+        );
         self.write_register(REG_MUX, &[mux])?;
         self.send_command(CMD_SYNC)?;
+        self.delay.delay_us(1); // Adjust based on tCLKIN
         self.send_command(CMD_WAKEUP)?;
+
+        self.wait_for_drdy_high()?; // Wait for DRDY to go high
+        self.wait_for_drdy()?; // Wait for DRDY to go low
+
         Ok(())
     }
 
@@ -268,10 +293,36 @@ where
         positive: u8,
         negative: u8,
     ) -> Result<(), Ads1256Error<SpiError, GpioError>> {
-        let mux = ((positive & 0x0F) << 4) | (negative & 0x0F);
+        let mut mux = 0x00;
+        self.wait_for_drdy()?;
+        // Validate and set positive input
+        if positive == 0x08 {
+            // AINCOM is not available
+            return Err(Ads1256Error::InvalidInputChannel);
+        } else if positive <= 0x07 {
+            mux |= (positive & 0x07) << 4;
+        } else {
+            return Err(Ads1256Error::InvalidInputChannel);
+        }
+
+        // Validate and set negative input
+        if negative == 0x08 {
+            // AINCOM is not available
+            return Err(Ads1256Error::InvalidInputChannel);
+        } else if negative <= 0x07 {
+            mux |= negative & 0x07;
+        } else {
+            return Err(Ads1256Error::InvalidInputChannel);
+        }
+
+        // Write MUX register and synchronize
         self.write_register(REG_MUX, &[mux])?;
         self.send_command(CMD_SYNC)?;
+        self.delay.delay_us(1); // Adjust based on tCLKIN
         self.send_command(CMD_WAKEUP)?;
+
+        self.wait_for_drdy_high()?; // Wait for DRDY to go high
+        self.wait_for_drdy()?; // Wait for DRDY to go low
         Ok(())
     }
 
