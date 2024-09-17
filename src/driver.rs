@@ -201,7 +201,7 @@ where
             if self.drdy.is_low().map_err(Ads1256Error::Gpio)? {
                 return Ok(());
             }
-            self.delay.delay_ms(1);
+            self.delay.delay_us(1);
         }
         log::error!("DRDY pin did not go low");
         Err(Ads1256Error::Timeout)
