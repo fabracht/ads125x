@@ -58,14 +58,24 @@ where
 
         // Reset the device
         self.send_command(CMD_RESET)?;
-        self.delay.delay_ms(5);
+        self.wait_for_drdy()?; // Wait for DRDY instead of fixed delay
 
         // Stop Read Data Continuously mode
         self.send_command(CMD_SDATAC)?;
-        self.delay.delay_ms(1);
+        self.wait_for_drdy()?;
+
+        // Configure STATUS register to enable Auto-Calibration (optional)
+        // Read current STATUS register
+        let mut status = [0u8; 1];
+        self.read_register(REG_STATUS, &mut status)?;
+        // Set ACAL bit (Bit 2)
+        status[0] |= 0x04;
+        // Write back to STATUS register
+        self.write_register(REG_STATUS, &status)?;
 
         // Configure ADCON register
-        let adcon = 0x20 | (self.gain as u8); // Clock out frequency = fCLKIN, gain setting
+        // Corrected to set BUFEN (Bit 4) and avoid reserved bits
+        let adcon = 0x10 | (self.gain as u8); // Enable buffer if needed
         self.write_register(REG_ADCON, &[adcon])?;
 
         // Set data rate
@@ -75,6 +85,7 @@ where
         self.write_register(REG_IO, &[0x00])?;
 
         // Perform self-calibration
+        self.send_command(CMD_SELFCAL)?;
         self.wait_for_drdy()?;
 
         Ok(())
@@ -179,16 +190,14 @@ where
 
     /// Waits for DRDY pin to go low
     fn wait_for_drdy(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
-        let mut attempts = 0;
-        while self.drdy.is_high().map_err(Ads1256Error::Gpio)? {
-            self.delay.delay_ms(1);
-            attempts += 1;
-            if attempts > 1000 {
-                // Timeout after 1 second
-                return Err(Ads1256Error::Timeout);
+        let timeout = 1000;
+        for _ in 0..timeout {
+            if self.drdy.is_low().map_err(Ads1256Error::Gpio)? {
+                return Ok(());
             }
+            self.delay.delay_ms(1);
         }
-        Ok(())
+        Err(Ads1256Error::Timeout)
     }
 
     /// Reads raw data from the ADC
@@ -217,6 +226,7 @@ where
         } else {
             raw_value
         };
+
         Ok(value)
     }
 
