@@ -252,8 +252,10 @@ where
 
     /// Sets the input multiplexer for single-ended input
     pub fn set_channel(&mut self, channel: u8) -> Result<(), Ads1256Error<SpiError, GpioError>> {
-        let mux = channel & 0x07; // Adjust based on your channel mapping
-        log::info!("Setting channel: {}", mux);
+        let positive = channel & 0x0F; // Ensure channel is within 0-15
+        let negative = 0x08; // AINCOM
+        let mux = (positive << 4) | negative;
+        log::info!("Setting MUX register to: 0x{:02X}", mux);
         self.write_register(REG_MUX, &[mux])?;
         self.send_command(CMD_SYNC)?;
         self.send_command(CMD_WAKEUP)?;
