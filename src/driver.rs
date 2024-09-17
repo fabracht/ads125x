@@ -51,7 +51,7 @@ where
     }
 
     /// Initializes the ADS1256 ADC module with default settings.
-    pub fn init(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
+    pub fn init(&mut self, buffer_enabled: bool) -> Result<(), Ads1256Error<SpiError, GpioError>> {
         // Bring PDWN high to enable the device
         self.pdwn.set_high().map_err(Ads1256Error::Gpio)?;
         self.delay.delay_ms(10);
@@ -64,17 +64,19 @@ where
         self.send_command(CMD_SDATAC)?;
         self.wait_for_drdy()?;
 
-        // Configure STATUS register to enable Auto-Calibration (optional)
         // Read current STATUS register
+        // Configure STATUS register with BUFEN setting
         let mut status = [0u8; 1];
         self.read_register(REG_STATUS, &mut status)?;
-        // Set ACAL bit (Bit 2)
-        status[0] |= 0x04;
-        // Write back to STATUS register
+        if buffer_enabled {
+            status[0] |= 0x02; // Set BUFEN bit
+        } else {
+            status[0] &= !0x02; // Clear BUFEN bit
+        }
         self.write_register(REG_STATUS, &status)?;
 
         // Configure ADCON register
-        // Corrected to set BUFEN (Bit 4) and avoid reserved bits
+        // Corrected to set BUFEN (Bit 4)
         let adcon = 0x00 | (self.gain as u8); // Set BUFEN as needed
         self.write_register(REG_ADCON, &[adcon])?;
 
@@ -261,6 +263,32 @@ where
         let max_code = 8388607.0; // 0x7FFFFF
 
         (code as f64 * (2.0 * v_ref)) / (gain * max_code)
+    }
+
+    pub fn set_buffer_enabled(
+        &mut self,
+        enabled: bool,
+    ) -> Result<(), Ads1256Error<SpiError, GpioError>> {
+        // Read the current STATUS register value
+        let mut status = [0u8; 1];
+        self.read_register(REG_STATUS, &mut status)?;
+
+        // Modify the BUFEN bit
+        if enabled {
+            status[0] |= 0x02; // Set BUFEN bit (Bit 1)
+        } else {
+            status[0] &= !0x02; // Clear BUFEN bit (Bit 1)
+        }
+
+        // Write back to the STATUS register
+        self.write_register(REG_STATUS, &status)?;
+
+        // Perform self-calibration if necessary
+        // It's recommended to recalibrate after changing the buffer setting
+        self.send_command(CMD_SELFCAL)?;
+        self.wait_for_drdy()?;
+
+        Ok(())
     }
 
     /// Sets the input multiplexer for single-ended input
