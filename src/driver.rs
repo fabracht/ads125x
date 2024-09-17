@@ -190,7 +190,7 @@ where
         self.delay.delay_us(5);
         self.spi.read(buffer).map_err(Ads1256Error::Spi)?;
         self.cs.set_high().map_err(Ads1256Error::Gpio)?;
-        self.delay.delay_ms(1);
+        self.delay.delay_us(10);
         Ok(())
     }
 
@@ -203,6 +203,7 @@ where
             }
             self.delay.delay_us(100);
         }
+        log::error!("DRDY pin did not go low");
         Err(Ads1256Error::Timeout)
     }
 
@@ -212,7 +213,7 @@ where
             self.delay.delay_us(100);
             attempts += 1;
             if attempts > 1000 {
-                // Timeout after 1 second
+                log::error!("DRDY pin did not go high");
                 return Err(Ads1256Error::Timeout);
             }
         }
