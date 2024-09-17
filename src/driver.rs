@@ -138,7 +138,7 @@ where
         for (reg, name) in registers.iter() {
             let mut buffer = [0u8; 1];
             self.read_register(*reg, &mut buffer)?;
-            log::info!("Register {}: 0x{:02X}", name, buffer[0]);
+            log::debug!("Register {}: 0x{:02X}", name, buffer[0]);
         }
 
         Ok(())
@@ -147,7 +147,7 @@ where
     /// Sends a command to the ADS1256
     fn send_command(&mut self, command: u8) -> Result<(), Ads1256Error<SpiError, GpioError>> {
         self.cs.set_low().map_err(Ads1256Error::Gpio)?;
-        log::info!("Sending command: 0x{:02X}", command);
+        log::debug!("Sending command: 0x{:02X}", command);
         self.spi.write(&[command]).map_err(Ads1256Error::Spi)?;
         self.cs.set_high().map_err(Ads1256Error::Gpio)?;
         Ok(())
@@ -231,7 +231,7 @@ where
         self.spi.read(&mut buffer).map_err(Ads1256Error::Spi)?;
         self.cs.set_high().map_err(Ads1256Error::Gpio)?;
 
-        log::info!(
+        log::debug!(
             "Raw data: {:02X} {:02X} {:02X}",
             buffer[0],
             buffer[1],
@@ -307,7 +307,7 @@ where
         // Construct MUX register value
         let mux = (positive << 4) | negative;
 
-        log::info!(
+        log::debug!(
             "Setting MUX register to: 0x{:02X} (AINP = AIN{}, AINN = AINCOM)",
             mux,
             positive
