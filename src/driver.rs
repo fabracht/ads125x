@@ -198,7 +198,6 @@ where
         let timeout = 1000;
         for _ in 0..timeout {
             if self.drdy.is_low().map_err(Ads1256Error::Gpio)? {
-                log::info!("Took {} ms to go low", timeout as f32 * 0.2);
                 return Ok(());
             }
             self.delay.delay_us(200);
@@ -217,8 +216,6 @@ where
                 return Err(Ads1256Error::Timeout);
             }
         }
-        log::info!("Took {} ms to go low", attempts as f32 * 0.2);
-
         Ok(())
     }
 
