@@ -97,6 +97,30 @@ where
         Ok(())
     }
 
+    pub fn print_registers(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
+        let registers = [
+            (REG_STATUS, "STATUS"),
+            (REG_MUX, "MUX"),
+            (REG_ADCON, "ADCON"),
+            (REG_DRATE, "DRATE"),
+            (REG_IO, "IO"),
+            (REG_OFC0, "OFC0"),
+            (REG_OFC1, "OFC1"),
+            (REG_OFC2, "OFC2"),
+            (REG_FSC0, "FSC0"),
+            (REG_FSC1, "FSC1"),
+            (REG_FSC2, "FSC2"),
+        ];
+
+        for (reg, name) in registers.iter() {
+            let mut buffer = [0u8; 1];
+            self.read_register(*reg, &mut buffer)?;
+            log::info!("Register {}: 0x{:02X}", name, buffer[0]);
+        }
+
+        Ok(())
+    }
+
     /// Sends a command to the ADS1256
     fn send_command(&mut self, command: u8) -> Result<(), Ads1256Error<SpiError, GpioError>> {
         self.cs.set_low().map_err(Ads1256Error::Gpio)?;
