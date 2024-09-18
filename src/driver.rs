@@ -58,11 +58,11 @@ where
 
         // Reset the device
         self.send_command(CMD_RESET)?;
-        self.wait_for_drdy()?; // Wait for DRDY instead of fixed delay
+        self.wait_for_drdy(None)?; // Wait for DRDY instead of fixed delay
 
         // Stop Read Data Continuously mode
         self.send_command(CMD_SDATAC)?;
-        self.wait_for_drdy()?;
+        self.wait_for_drdy(None)?;
 
         // Read current STATUS register
         // Configure STATUS register with BUFEN setting
@@ -92,7 +92,7 @@ where
 
         // Perform self-calibration
         self.send_command(CMD_SELFCAL)?;
-        self.wait_for_drdy()?;
+        self.wait_for_drdy(None)?;
 
         Ok(())
     }
@@ -111,11 +111,11 @@ where
         self.delay.delay_ms(50); // Increased delay after reset command
 
         // Wait for DRDY to go low
-        self.wait_for_drdy()?;
+        self.wait_for_drdy(None)?;
 
         // Perform self-calibration
         self.send_command(CMD_SELFCAL)?;
-        self.wait_for_drdy()?;
+        self.wait_for_drdy(None)?;
 
         Ok(())
     }
@@ -163,7 +163,7 @@ where
         let count = (data.len() - 1) as u8;
 
         self.cs.set_low().map_err(Ads1256Error::Gpio)?;
-        self.wait_for_drdy()?;
+        self.wait_for_drdy(None)?;
         self.spi
             .write(&[command, count])
             .map_err(Ads1256Error::Spi)?;
@@ -183,7 +183,7 @@ where
         let count = (buffer.len() - 1) as u8;
 
         self.cs.set_low().map_err(Ads1256Error::Gpio)?;
-        self.wait_for_drdy()?;
+        self.wait_for_drdy(None)?;
         self.spi
             .write(&[command, count])
             .map_err(Ads1256Error::Spi)?;
@@ -193,39 +193,40 @@ where
         Ok(())
     }
 
-    /// Waits for DRDY pin to go low
-    fn wait_for_drdy(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
-        let timeout = 100000;
-        for _ in 0..timeout {
-            if self.drdy.is_low().map_err(Ads1256Error::Gpio)? {
-                return Ok(());
-            }
-            // self.delay.delay_us(200);
-        }
-        log::error!("DRDY pin did not go low");
-        Err(Ads1256Error::Timeout)
-    }
+    // /// Waits for DRDY pin to go low
+    // fn wait_for_drdy(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
+    //     let timeout = 100000;
+    //     for _ in 0..timeout {
+    //         if self.drdy.is_low().map_err(Ads1256Error::Gpio)? {
+    //             return Ok(());
+    //         }
+    //         // self.delay.delay_us(200);
+    //     }
+    //     log::error!("DRDY pin did not go low");
+    //     Err(Ads1256Error::Timeout)
+    // }
 
     // Wait for DRDY to go low with a callback function,
     // useful for feeding a watchdog timer or other tasks
     // that need to be executed while waiting for DRDY
-    pub fn wait_for_drdy_with_callback<F>(
+    fn wait_for_drdy(
         &mut self,
-        callback: Option<F>,
-    ) -> Result<(), Ads1256Error<SpiError, GpioError>>
-    where
-        F: Fn(),
-    {
+        callback: Option<&dyn Fn()>,
+    ) -> Result<(), Ads1256Error<SpiError, GpioError>> {
         let timeout = 1000;
         for _ in 0..timeout {
             if self.drdy.is_low().map_err(Ads1256Error::Gpio)? {
                 return Ok(());
             }
-            if let Some(ref cb) = callback {
-                cb(); // Execute the callback if provided (e.g., task watchdog feed)
+
+            // If callback is provided, execute it
+            if let Some(cb) = callback {
+                cb(); // Call the callback function
             }
-            self.delay.delay_us(200);
+
+            self.delay.delay_us(200); // Still use a small delay between checks
         }
+
         log::error!("DRDY pin did not go low");
         Err(Ads1256Error::Timeout)
     }
@@ -244,8 +245,11 @@ where
     }
 
     /// Reads raw data from the ADC
-    pub fn read_data(&mut self) -> Result<i32, Ads1256Error<SpiError, GpioError>> {
-        self.wait_for_drdy()?;
+    pub fn read_data(
+        &mut self,
+        callback: Option<&dyn Fn()>,
+    ) -> Result<i32, Ads1256Error<SpiError, GpioError>> {
+        self.wait_for_drdy(callback)?;
 
         self.cs.set_low().map_err(Ads1256Error::Gpio)?;
         self.spi.write(&[CMD_RDATA]).map_err(Ads1256Error::Spi)?;
@@ -273,8 +277,11 @@ where
     }
 
     /// Reads the voltage from the ADC
-    pub fn read_voltage(&mut self) -> Result<f64, Ads1256Error<SpiError, GpioError>> {
-        let code = self.read_data()?;
+    pub fn read_voltage(
+        &mut self,
+        callback: Option<&dyn Fn()>,
+    ) -> Result<f64, Ads1256Error<SpiError, GpioError>> {
+        let code = self.read_data(callback)?;
         let voltage = self.code_to_voltage(code);
         Ok(voltage)
     }
@@ -309,7 +316,7 @@ where
         // Perform self-calibration if necessary
         // It's recommended to recalibrate after changing the buffer setting
         self.send_command(CMD_SELFCAL)?;
-        self.wait_for_drdy()?;
+        self.wait_for_drdy(None)?;
 
         Ok(())
     }
@@ -350,7 +357,7 @@ where
 
         // Wait for DRDY to go high and then low (new data ready)
         self.wait_for_drdy_high()?; // Wait for DRDY to go high
-        self.wait_for_drdy()?; // Wait for DRDY to go low
+        self.wait_for_drdy(None)?; // Wait for DRDY to go low
 
         Ok(())
     }
@@ -362,7 +369,7 @@ where
         negative: u8,
     ) -> Result<(), Ads1256Error<SpiError, GpioError>> {
         let mut mux = 0x00;
-        self.wait_for_drdy()?;
+        self.wait_for_drdy(None)?;
         // Validate and set positive input
         if positive == 0x08 {
             // AINCOM is not available
@@ -390,7 +397,7 @@ where
         self.send_command(CMD_WAKEUP)?;
 
         self.wait_for_drdy_high()?; // Wait for DRDY to go high
-        self.wait_for_drdy()?; // Wait for DRDY to go low
+        self.wait_for_drdy(None)?; // Wait for DRDY to go low
         Ok(())
     }
 
@@ -425,21 +432,21 @@ where
     // Perform a full self-calibration (both offset and gain)
     pub fn self_calibrate(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
         self.send_command(CMD_SELFCAL)?;
-        self.wait_for_drdy()?;
+        self.wait_for_drdy(None)?;
         Ok(())
     }
 
     // Perform only offset self-calibration
     pub fn self_offset_calibrate(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
         self.send_command(CMD_SELFOCAL)?;
-        self.wait_for_drdy()?;
+        self.wait_for_drdy(None)?;
         Ok(())
     }
 
     // Perform only gain self-calibration
     pub fn self_gain_calibrate(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
         self.send_command(CMD_SELFGCAL)?;
-        self.wait_for_drdy()?;
+        self.wait_for_drdy(None)?;
         Ok(())
     }
 }
@@ -464,7 +471,7 @@ where
 
         // Step 2: Perform calibration
         self.send_command(CMD_SYSOCAL)?;
-        self.wait_for_drdy()?;
+        self.wait_for_drdy(None)?;
         Ok(())
     }
 
@@ -479,7 +486,7 @@ where
 
         // Step 2: Perform calibration
         self.send_command(CMD_SYSGCAL)?;
-        self.wait_for_drdy()?;
+        self.wait_for_drdy(None)?;
         Ok(())
     }
 }
@@ -557,7 +564,7 @@ where
         self.pdwn.set_high().map_err(Ads1256Error::Gpio)?;
 
         // Wait for the ADS1256 to be ready again (DRDY will go high until data is ready)
-        self.wait_for_drdy()?;
+        self.wait_for_drdy(None)?;
 
         Ok(())
     }
@@ -595,7 +602,7 @@ where
         self.send_command(CMD_WAKEUP)?;
 
         // After a synchronization, DRDY stays high until data is ready
-        self.wait_for_drdy()?;
+        self.wait_for_drdy(None)?;
 
         Ok(())
     }
