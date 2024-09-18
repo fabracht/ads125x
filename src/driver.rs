@@ -195,12 +195,12 @@ where
 
     /// Waits for DRDY pin to go low
     fn wait_for_drdy(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
-        let timeout = 1000;
+        let timeout = 100000;
         for _ in 0..timeout {
             if self.drdy.is_low().map_err(Ads1256Error::Gpio)? {
                 return Ok(());
             }
-            self.delay.delay_us(200);
+            // self.delay.delay_us(200);
         }
         log::error!("DRDY pin did not go low");
         Err(Ads1256Error::Timeout)
@@ -209,9 +209,9 @@ where
     fn wait_for_drdy_high(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
         let mut attempts = 0;
         while self.drdy.is_low().map_err(Ads1256Error::Gpio)? {
-            self.delay.delay_us(200);
+            // self.delay.delay_us(200);
             attempts += 1;
-            if attempts > 1000 {
+            if attempts > 100000 {
                 log::error!("DRDY pin did not go high");
                 return Err(Ads1256Error::Timeout);
             }
