@@ -187,7 +187,7 @@ where
         self.spi
             .write(&[command, count])
             .map_err(Ads1256Error::Spi)?;
-        self.delay.delay_us(5);
+        // self.delay.delay_us(5);
         self.spi.read(buffer).map_err(Ads1256Error::Spi)?;
         self.cs.set_high().map_err(Ads1256Error::Gpio)?;
         Ok(())
@@ -200,7 +200,7 @@ where
             if self.drdy.is_low().map_err(Ads1256Error::Gpio)? {
                 return Ok(());
             }
-            self.delay.delay_ms(2);
+            // self.delay.delay_ms(2);
         }
         log::error!("DRDY pin did not go low");
         Err(Ads1256Error::Timeout)
