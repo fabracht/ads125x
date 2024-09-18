@@ -6,9 +6,11 @@ edition = "2021"
 [features]
 default = ["std"]
 std = []
+async = []
 
 [dependencies]
 embedded-hal = "1.0.0"
+embedded-hal-async = "1.0.0"
 log = "0.4.22"
 
 [dev-dependencies]

@@ -1,7 +1,7 @@
 /// ADS1256 Commands
 pub const CMD_WAKEUP: u8 = 0x00;
 pub const CMD_RDATA: u8 = 0x01;
-pub const CMD_RDATAC: u8 = 0x03;
+// pub const CMD_RDATAC: u8 = 0x03;
 pub const CMD_SDATAC: u8 = 0x0F;
 pub const CMD_RREG: u8 = 0x10;
 pub const CMD_WREG: u8 = 0x50;
@@ -11,7 +11,7 @@ pub const CMD_SELFGCAL: u8 = 0xF2;
 pub const CMD_SYSOCAL: u8 = 0xF3;
 pub const CMD_SYSGCAL: u8 = 0xF4;
 pub const CMD_SYNC: u8 = 0xFC;
-pub const CMD_STANDBY: u8 = 0xFD;
+// pub const CMD_STANDBY: u8 = 0xFD;
 pub const CMD_RESET: u8 = 0xFE;
 
 /// ADS1256 Registers
