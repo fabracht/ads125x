@@ -55,7 +55,7 @@ where
     ) -> Result<(), Ads1256Error<SpiError, GpioError>> {
         // Bring PDWN high to enable the device
         self.pdwn.set_high().map_err(Ads1256Error::Gpio)?;
-        self.delay.delay_ms(10);
+        self.delay.delay_ms(10).await;
 
         // Reset the device
         self.send_command(CMD_RESET).await?;
