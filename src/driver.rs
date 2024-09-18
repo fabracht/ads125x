@@ -206,6 +206,30 @@ where
         Err(Ads1256Error::Timeout)
     }
 
+    // Wait for DRDY to go low with a callback function,
+    // useful for feeding a watchdog timer or other tasks
+    // that need to be executed while waiting for DRDY
+    pub fn wait_for_drdy_with_callback<F>(
+        &mut self,
+        callback: Option<F>,
+    ) -> Result<(), Ads1256Error<SpiError, GpioError>>
+    where
+        F: Fn(),
+    {
+        let timeout = 1000;
+        for _ in 0..timeout {
+            if self.drdy.is_low().map_err(Ads1256Error::Gpio)? {
+                return Ok(());
+            }
+            if let Some(ref cb) = callback {
+                cb(); // Execute the callback if provided (e.g., task watchdog feed)
+            }
+            self.delay.delay_us(200);
+        }
+        log::error!("DRDY pin did not go low");
+        Err(Ads1256Error::Timeout)
+    }
+
     fn wait_for_drdy_high(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
         let mut attempts = 0;
         while self.drdy.is_low().map_err(Ads1256Error::Gpio)? {
