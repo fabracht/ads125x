@@ -27,6 +27,12 @@ pub const REG_FSC0: u8 = 0x08;
 pub const REG_FSC1: u8 = 0x09;
 pub const REG_FSC2: u8 = 0x0A;
 
+/// Default timing values (in microseconds) based on 7.68MHz clock
+pub const T_CLKIN: f64 = 1.0 / 7.68; // Clock period in microseconds
+pub const T6_DELAY: u64 = 7; // t6 delay (50 * CLKIN period)
+pub const T11_DELAY: u64 = 100; // t11 delay
+pub const T16_DELAY: u64 = 5; // t16 delay (4 clock cycles)
+
 /// Gain settings for the ADS1256 programmable gain amplifier (PGA)
 #[derive(Clone, Copy, Debug)]
 pub enum Gain {
@@ -73,4 +79,28 @@ pub enum DataRate {
     Sps10 = 0x23,
     Sps5 = 0x13,
     Sps2_5 = 0x03,
+}
+
+impl DataRate {
+    /// Returns the sample period in milliseconds
+    pub fn period_ms(&self) -> f64 {
+        match self {
+            DataRate::Sps30000 => 1.0 / 30000.0 * 1000.0,
+            DataRate::Sps15000 => 1.0 / 15000.0 * 1000.0,
+            DataRate::Sps7500 => 1.0 / 7500.0 * 1000.0,
+            DataRate::Sps3750 => 1.0 / 3750.0 * 1000.0,
+            DataRate::Sps2000 => 1.0 / 2000.0 * 1000.0,
+            DataRate::Sps1000 => 1.0,
+            DataRate::Sps500 => 2.0,
+            DataRate::Sps100 => 10.0,
+            DataRate::Sps60 => 16.67,
+            DataRate::Sps50 => 20.0,
+            DataRate::Sps30 => 33.33,
+            DataRate::Sps25 => 40.0,
+            DataRate::Sps15 => 66.67,
+            DataRate::Sps10 => 100.0,
+            DataRate::Sps5 => 200.0,
+            DataRate::Sps2_5 => 400.0,
+        }
+    }
 }
