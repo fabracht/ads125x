@@ -226,7 +226,7 @@ where
 
     /// Reads raw data from the ADC
     pub fn read_data(&mut self) -> Result<i32, Ads1256Error<SpiError, GpioError>> {
-        self.wait_for_drdy()?;
+        // self.wait_for_drdy()?;
 
         self.cs.set_low().map_err(Ads1256Error::Gpio)?;
         self.spi.write(&[CMD_RDATA]).map_err(Ads1256Error::Spi)?;
