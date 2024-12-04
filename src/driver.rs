@@ -14,9 +14,9 @@ use embedded_hal::{
 pub struct Ads1256<SPI, CS, DRDY, PDWN, DELAY> {
     spi: SPI,
     cs: CS,
-    drdy: DRDY,
+    pub drdy: DRDY,
     pdwn: PDWN,
-    delay: DELAY,
+    pub delay: DELAY,
     gain: Gain,
     data_rate: DataRate,
 }
@@ -145,7 +145,7 @@ where
     }
 
     /// Sends a command to the ADS1256
-    fn send_command(&mut self, command: u8) -> Result<(), Ads1256Error<SpiError, GpioError>> {
+    pub fn send_command(&mut self, command: u8) -> Result<(), Ads1256Error<SpiError, GpioError>> {
         self.cs.set_low().map_err(Ads1256Error::Gpio)?;
         log::debug!("Sending command: 0x{:02X}", command);
         self.spi.write(&[command]).map_err(Ads1256Error::Spi)?;
@@ -256,12 +256,14 @@ where
     }
 
     /// Converts raw ADC code to voltage
-    fn code_to_voltage(&self, code: i32) -> f64 {
-        let v_ref = 2.5; // Reference voltage
-        let gain = self.gain.value(); // Get the gain value based on the current PGA setting
-        let max_code = 8388607.0; // 0x7FFFFF
+    pub fn code_to_voltage(&self, code: i32) -> f64 {
+        // Assuming VREF is 2.5V and PGA gain is 1
+        let vref = 2.5;
+        let gain = self.gain.value();
+        let max_code = 8388607; // Maximum positive ADC value (2^23 - 1)
 
-        (code as f64 * (2.0 * v_ref)) / (gain * max_code)
+        // Convert code to voltage
+        (code as f64) * (vref / (gain * max_code as f64))
     }
 
     pub fn set_buffer_enabled(
