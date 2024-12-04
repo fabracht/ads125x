@@ -50,21 +50,20 @@ where
         }
     }
 
-    /// Initializes the ADS1256 ADC module with default settings.
+    /// Initializes the ADS1256 ADC module
     pub fn init(&mut self, buffer_enabled: bool) -> Result<(), Ads1256Error<SpiError, GpioError>> {
-        // Bring PDWN high to enable the device
+        // Power up sequence
         self.pdwn.set_high().map_err(Ads1256Error::Gpio)?;
         self.delay.delay_ms(10);
 
         // Reset the device
         self.send_command(CMD_RESET)?;
-        self.wait_for_drdy()?; // Wait for DRDY instead of fixed delay
+        self.wait_for_drdy()?;
 
-        // Stop Read Data Continuously mode
+        // Stop continuous read mode
         self.send_command(CMD_SDATAC)?;
         self.wait_for_drdy()?;
 
-        // Read current STATUS register
         // Configure STATUS register with BUFEN setting
         let mut status = [0u8; 1];
         self.read_register(REG_STATUS, &mut status)?;
@@ -75,71 +74,23 @@ where
         }
         self.write_register(REG_STATUS, &status)?;
 
-        // Configure ADCON register
-        // Corrected to set BUFEN (Bit 4)
-        let adcon = 0x00 | (self.gain as u8); // Set BUFEN as needed
+        // Configure ADCON register (PGA setting)
+        let adcon = self.gain as u8;
         self.write_register(REG_ADCON, &[adcon])?;
 
         // Set data rate
         self.write_register(REG_DRATE, &[self.data_rate as u8])?;
 
-        // Set IO register (all GPIOs as outputs)
+        // Configure IO register (all GPIOs as outputs)
         self.write_register(REG_IO, &[0x00])?;
 
-        // Configure MUX register for initial channel (e.g., AIN0 single-ended)
-        let mux = (0x00 << 4) | 0x08; // AINP = AIN0, AINN = AINCOM
+        // Initial MUX setting (AIN0 to AINCOM)
+        let mux = (0x00 << 4) | 0x08;
         self.write_register(REG_MUX, &[mux])?;
 
         // Perform self-calibration
         self.send_command(CMD_SELFCAL)?;
         self.wait_for_drdy()?;
-
-        Ok(())
-    }
-
-    pub fn reset(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
-        // Pull PDWN low
-        self.pdwn.set_low().map_err(Ads1256Error::Gpio)?;
-        self.delay.delay_ms(10);
-
-        // Pull PDWN high
-        self.pdwn.set_high().map_err(Ads1256Error::Gpio)?;
-        self.delay.delay_ms(10);
-
-        // Send reset command
-        self.send_command(CMD_RESET)?;
-        self.delay.delay_ms(50); // Increased delay after reset command
-
-        // Wait for DRDY to go low
-        self.wait_for_drdy()?;
-
-        // Perform self-calibration
-        self.send_command(CMD_SELFCAL)?;
-        self.wait_for_drdy()?;
-
-        Ok(())
-    }
-
-    pub fn print_registers(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
-        let registers = [
-            (REG_STATUS, "STATUS"),
-            (REG_MUX, "MUX"),
-            (REG_ADCON, "ADCON"),
-            (REG_DRATE, "DRATE"),
-            (REG_IO, "IO"),
-            (REG_OFC0, "OFC0"),
-            (REG_OFC1, "OFC1"),
-            (REG_OFC2, "OFC2"),
-            (REG_FSC0, "FSC0"),
-            (REG_FSC1, "FSC1"),
-            (REG_FSC2, "FSC2"),
-        ];
-
-        for (reg, name) in registers.iter() {
-            let mut buffer = [0u8; 1];
-            self.read_register(*reg, &mut buffer)?;
-            log::debug!("Register {}: 0x{:02X}", name, buffer[0]);
-        }
 
         Ok(())
     }
@@ -226,6 +177,9 @@ where
         self.cs.set_low().map_err(Ads1256Error::Gpio)?;
         self.spi.write(&[CMD_RDATA]).map_err(Ads1256Error::Spi)?;
 
+        // Add t6 delay as per datasheet (50 * CLKIN period)
+        self.delay.delay_us(7); // For 7.68MHz clock
+
         let mut buffer = [0u8; 3];
         self.spi.read(&mut buffer).map_err(Ads1256Error::Spi)?;
         self.cs.set_high().map_err(Ads1256Error::Gpio)?;
@@ -236,6 +190,7 @@ where
             buffer[1],
             buffer[2]
         );
+
         // Convert 24-bit data to signed 32-bit integer
         let raw_value = ((buffer[0] as i32) << 16) | ((buffer[1] as i32) << 8) | (buffer[2] as i32);
         // Sign extension for negative values
@@ -248,7 +203,6 @@ where
         Ok(value)
     }
 
-    /// Reads the voltage from the ADC
     pub fn read_voltage(&mut self) -> Result<f64, Ads1256Error<SpiError, GpioError>> {
         let code = self.read_data()?;
         let voltage = self.code_to_voltage(code);
@@ -284,8 +238,7 @@ where
         // Write back to the STATUS register
         self.write_register(REG_STATUS, &status)?;
 
-        // Perform self-calibration if necessary
-        // It's recommended to recalibrate after changing the buffer setting
+        // Perform self-calibration after changing buffer setting
         self.send_command(CMD_SELFCAL)?;
         self.wait_for_drdy()?;
 
@@ -319,11 +272,7 @@ where
 
         // Synchronize conversions
         self.send_command(CMD_SYNC)?;
-
-        // Wait for minimum delay t11
         self.delay.delay_us(100); // Adjust based on tCLKIN
-
-        // Wake up the ADC
         self.send_command(CMD_WAKEUP)?;
 
         // Wait for DRDY to go high and then low (new data ready)
@@ -377,6 +326,10 @@ where
         let adcon = 0x20 | (gain as u8);
         self.write_register(REG_ADCON, &[adcon])?;
         self.gain = gain;
+
+        // Perform self-calibration
+        self.send_command(CMD_SELFCAL)?;
+        self.wait_for_drdy()?;
         Ok(())
     }
 
@@ -387,115 +340,57 @@ where
     ) -> Result<(), Ads1256Error<SpiError, GpioError>> {
         self.write_register(REG_DRATE, &[data_rate as u8])?;
         self.data_rate = data_rate;
+
+        // Perform self-calibration
+        self.send_command(CMD_SELFCAL)?;
+        self.wait_for_drdy()?;
         Ok(())
     }
-}
 
-// Implement self-calibration options
-impl<SPI, CS, DRDY, PDWN, DELAY, SpiError, GpioError> Ads1256<SPI, CS, DRDY, PDWN, DELAY>
-where
-    SPI: SpiDevice<Error = SpiError>,
-    CS: OutputPin<Error = GpioError>,
-    DRDY: InputPin<Error = GpioError>,
-    PDWN: OutputPin<Error = GpioError>,
-    DELAY: DelayNs,
-{
-    // Perform a full self-calibration (both offset and gain)
+    // Self-calibration methods
     pub fn self_calibrate(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
         self.send_command(CMD_SELFCAL)?;
         self.wait_for_drdy()?;
         Ok(())
     }
 
-    // Perform only offset self-calibration
     pub fn self_offset_calibrate(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
         self.send_command(CMD_SELFOCAL)?;
         self.wait_for_drdy()?;
         Ok(())
     }
 
-    // Perform only gain self-calibration
     pub fn self_gain_calibrate(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
         self.send_command(CMD_SELFGCAL)?;
         self.wait_for_drdy()?;
         Ok(())
     }
-}
 
-// Implement system calibration options
-impl<SPI, CS, DRDY, PDWN, DELAY, SpiError, GpioError> Ads1256<SPI, CS, DRDY, PDWN, DELAY>
-where
-    SPI: SpiDevice<Error = SpiError>,
-    CS: OutputPin<Error = GpioError>,
-    DRDY: InputPin<Error = GpioError>,
-    PDWN: OutputPin<Error = GpioError>,
-    DELAY: DelayNs,
-{
-    // Perform a system offset calibration (requires zero differential input)
     pub fn system_offset_calibrate(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
-        // Step 1: Configure inputs for zero differential input
-        // For example, short AIN0 and AIN1
-        self.set_input_channel(0x00, 0x01)?; // AINP = AIN0, AINN = AIN1
-
-        // Ensure that AIN0 is properly connected (e.g., connected to AGND)
-        // This may require hardware setup outside of the ADC
-
-        // Step 2: Perform calibration
         self.send_command(CMD_SYSOCAL)?;
         self.wait_for_drdy()?;
         Ok(())
     }
 
-    // Perform a system gain calibration (requires full-scale input)
     pub fn system_gain_calibrate(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
-        // Step 1: Configure inputs for full-scale differential input
-        self.set_input_channel(0x00, 0x01)?; // AINP = AIN0, AINN = AIN1
-
-        // Apply full-scale voltage across AIN0 and AIN1
-        // The voltage should be (±2 * VREF) / PGA
-        // Ensure that the applied voltage does not exceed the absolute maximum ratings
-
-        // Step 2: Perform calibration
         self.send_command(CMD_SYSGCAL)?;
         self.wait_for_drdy()?;
         Ok(())
     }
-}
 
-// Read from the calibration registers
-impl<SPI, CS, DRDY, PDWN, DELAY, SpiError, GpioError> Ads1256<SPI, CS, DRDY, PDWN, DELAY>
-where
-    SPI: SpiDevice<Error = SpiError>,
-    CS: OutputPin<Error = GpioError>,
-    DRDY: InputPin<Error = GpioError>,
-    PDWN: OutputPin<Error = GpioError>,
-    DELAY: DelayNs,
-{
-    // Function to read the Offset Calibration registers (OFC0, OFC1, OFC2)
+    // Read calibration registers
     pub fn read_offset_calibration(&mut self) -> Result<i32, Ads1256Error<SpiError, GpioError>> {
         let mut buffer = [0u8; 3];
         self.read_register(REG_OFC0, &mut buffer)?;
         Ok(((buffer[0] as i32) << 16) | ((buffer[1] as i32) << 8) | (buffer[2] as i32))
     }
 
-    // Function to read the Full-Scale Calibration registers (FSC0, FSC1, FSC2)
     pub fn read_fullscale_calibration(&mut self) -> Result<i32, Ads1256Error<SpiError, GpioError>> {
         let mut buffer = [0u8; 3];
         self.read_register(REG_FSC0, &mut buffer)?;
         Ok(((buffer[0] as i32) << 16) | ((buffer[1] as i32) << 8) | (buffer[2] as i32))
     }
-}
 
-// Writing to calibration register
-impl<SPI, CS, DRDY, PDWN, DELAY, SpiError, GpioError> Ads1256<SPI, CS, DRDY, PDWN, DELAY>
-where
-    SPI: SpiDevice<Error = SpiError>,
-    CS: OutputPin<Error = GpioError>,
-    DRDY: InputPin<Error = GpioError>,
-    PDWN: OutputPin<Error = GpioError>,
-    DELAY: DelayNs,
-{
-    // Manually write to the Offset Calibration registers
     pub fn write_offset_calibration(
         &mut self,
         value: i32,
@@ -504,7 +399,6 @@ where
         self.write_register(REG_OFC0, &data)
     }
 
-    // Manually write to the Full-Scale Calibration registers
     pub fn write_fullscale_calibration(
         &mut self,
         value: i32,
@@ -512,69 +406,84 @@ where
         let data = [(value >> 16) as u8, (value >> 8) as u8, value as u8];
         self.write_register(REG_FSC0, &data)
     }
-}
 
-// Implement Synchronization and power down
-impl<SPI, CS, DRDY, PDWN, DELAY, SpiError, GpioError> Ads1256<SPI, CS, DRDY, PDWN, DELAY>
-where
-    SPI: SpiDevice<Error = SpiError>,
-    CS: OutputPin<Error = GpioError>,
-    DRDY: InputPin<Error = GpioError>,
-    PDWN: OutputPin<Error = GpioError>,
-    DELAY: DelayNs,
-{
-    // Synchronize using the SYNC/PDWN pin
-    pub fn synchronize_with_pin(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
-        // Bring SYNC/PDWN low
-        self.pdwn.set_low().map_err(Ads1256Error::Gpio)?;
+    pub fn print_registers(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
+        let registers = [
+            (REG_STATUS, "STATUS"),
+            (REG_MUX, "MUX"),
+            (REG_ADCON, "ADCON"),
+            (REG_DRATE, "DRATE"),
+            (REG_IO, "IO"),
+            (REG_OFC0, "OFC0"),
+            (REG_OFC1, "OFC1"),
+            (REG_OFC2, "OFC2"),
+            (REG_FSC0, "FSC0"),
+            (REG_FSC1, "FSC1"),
+            (REG_FSC2, "FSC2"),
+        ];
 
-        // Wait for t16 (timing for the SYNC pulse), this is typically quite short, ~4 clock cycles
-        self.delay.delay_us(5); // Adjust this based on timing specs (t16)
-
-        // Bring SYNC/PDWN high to complete synchronization
-        self.pdwn.set_high().map_err(Ads1256Error::Gpio)?;
-
-        // Wait for the ADS1256 to be ready again (DRDY will go high until data is ready)
-        self.wait_for_drdy()?;
-
-        Ok(())
-    }
-
-    // Power down the ADS1256 by holding the SYNC/PDWN pin low for 20 DRDY periods
-    pub fn enter_power_down(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
-        // Hold SYNC/PDWN low for 20 DRDY periods (we'll wait in a loop)
-        self.pdwn.set_low().map_err(Ads1256Error::Gpio)?;
-
-        // Wait for 20 DRDY periods, each DRDY period depends on the data rate
-        // Assuming a 1000 SPS data rate, the period is 1ms (adjust according to your data rate)
-        for _ in 0..20 {
-            self.delay.delay_ms(1); // Wait for 1 DRDY period (1ms for 1000 SPS)
+        for (reg, name) in registers.iter() {
+            let mut buffer = [0u8; 1];
+            self.read_register(*reg, &mut buffer)?;
+            log::debug!("Register {}: 0x{:02X}", name, buffer[0]);
         }
 
         Ok(())
     }
-}
 
-// Implement synchronization via SYNC command
-impl<SPI, CS, DRDY, PDWN, DELAY, SpiError, GpioError> Ads1256<SPI, CS, DRDY, PDWN, DELAY>
-where
-    SPI: SpiDevice<Error = SpiError>,
-    CS: OutputPin<Error = GpioError>,
-    DRDY: InputPin<Error = GpioError>,
-    PDWN: OutputPin<Error = GpioError>,
-    DELAY: DelayNs,
-{
-    // Synchronize using the SYNC and WAKEUP commands
-    pub fn synchronize_with_commands(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
-        // Send the SYNC command to stop conversion and wait for the device to sync
-        self.send_command(CMD_SYNC)?;
+    pub fn reset(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
+        // Pull PDWN low
+        self.pdwn.set_low().map_err(Ads1256Error::Gpio)?;
+        self.delay.delay_ms(10);
 
-        // To resume and synchronize conversions, send the WAKEUP command
-        self.send_command(CMD_WAKEUP)?;
+        // Pull PDWN high
+        self.pdwn.set_high().map_err(Ads1256Error::Gpio)?;
+        self.delay.delay_ms(10);
 
-        // After a synchronization, DRDY stays high until data is ready
+        // Send reset command
+        self.send_command(CMD_RESET)?;
+        self.delay.delay_ms(50); // Increased delay after reset command
+
+        // Wait for DRDY to go low
         self.wait_for_drdy()?;
 
+        // Perform self-calibration
+        self.send_command(CMD_SELFCAL)?;
+        self.wait_for_drdy()?;
+
+        Ok(())
+    }
+
+    pub fn synchronize_with_pin(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
+        // Bring SYNC/PDWN low
+        self.pdwn.set_low().map_err(Ads1256Error::Gpio)?;
+
+        // Wait for t16 (timing for the SYNC pulse), typically quite short, ~4 clock cycles
+        self.delay.delay_us(5); // Adjust based on timing specs (t16)
+
+        // Bring SYNC/PDWN high to complete synchronization
+        self.pdwn.set_high().map_err(Ads1256Error::Gpio)?;
+
+        // Wait for the ADS1256 to be ready again (DRDY goes high until data is ready)
+        self.wait_for_drdy()?;
+
+        Ok(())
+    }
+
+    pub fn enter_power_down(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
+        // Hold SYNC/PDWN low for 20 DRDY periods
+        self.pdwn.set_low().map_err(Ads1256Error::Gpio)?;
+
+        // Wait for 20 DRDY periods (depends on the data rate)
+        let drdy_period_ms = self.data_rate.period_ms();
+        self.delay.delay_ms((20.0 * drdy_period_ms) as u32);
+
+        Ok(())
+    }
+
+    pub fn exit_power_down(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
+        self.pdwn.set_high().map_err(Ads1256Error::Gpio)?;
+        self.delay.delay_ms(30); // Wait for oscillator startup
         Ok(())
     }
 }
