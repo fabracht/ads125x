@@ -144,85 +144,110 @@ where
         Ok(())
     }
 
-    /// Waits for DRDY pin to go low with timeout based on data rate
     fn wait_for_drdy(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
-        let period_us = (self.data_rate.period_ms() * 1000.0) as u32;
-        let timeout_us = (period_us as f64 * 2.5) as u32;
-        let poll_interval_us = (period_us / 10).max(100);
-        let warning_threshold = (period_us as f64 * 1.5) as u32;
-
-        let mut elapsed_us = 0;
-
-        while self.drdy.is_high().map_err(Ads1256Error::Gpio)? {
-            if elapsed_us >= timeout_us {
-                return Err(Ads1256Error::DrdyTimeout {
-                    current_state: true,
-                    wait_time: elapsed_us,
-                });
+        let timeout = 50000;
+        for _ in 0..timeout {
+            if self.drdy.is_low().map_err(Ads1256Error::Gpio)? {
+                return Ok(());
             }
-
-            if elapsed_us >= warning_threshold {
-                log::warn!(
-                    "DRDY taking longer than expected: {}μs vs {}μs expected",
-                    elapsed_us,
-                    period_us
-                );
-            }
-
-            self.delay.delay_us(poll_interval_us);
-            elapsed_us += poll_interval_us;
+            self.delay.delay_us(200);
         }
-
-        if elapsed_us > warning_threshold {
-            log::debug!(
-                "DRDY conversion completed in {}μs (expected: {}μs)",
-                elapsed_us,
-                period_us
-            );
-        }
-
-        Ok(())
+        log::error!("DRDY pin did not go low");
+        Err(Ads1256Error::Timeout)
     }
 
-    /// Waits for DRDY pin to go high with timeout based on data rate
     fn wait_for_drdy_high(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
-        let period_us = (self.data_rate.period_ms() * 1000.0) as u32;
-        let timeout_us = (period_us as f64 * 2.5) as u32;
-        let poll_interval_us = (period_us / 10).max(100);
-        let warning_threshold = (period_us as f64 * 1.5) as u32;
-
-        let mut elapsed_us = 0;
-
+        let mut attempts = 0;
         while self.drdy.is_low().map_err(Ads1256Error::Gpio)? {
-            if elapsed_us >= timeout_us {
-                return Err(Ads1256Error::DrdyTimeout {
-                    current_state: false,
-                    wait_time: elapsed_us,
-                });
+            self.delay.delay_us(200);
+            attempts += 1;
+            if attempts > 50000 {
+                log::error!("DRDY pin did not go high");
+                return Err(Ads1256Error::Timeout);
             }
-
-            if elapsed_us >= warning_threshold {
-                log::warn!(
-                    "DRDY high transition taking longer than expected: {}μs vs {}μs expected",
-                    elapsed_us,
-                    period_us
-                );
-            }
-
-            self.delay.delay_us(poll_interval_us);
-            elapsed_us += poll_interval_us;
         }
-
-        if elapsed_us > warning_threshold {
-            log::debug!(
-                "DRDY high transition completed in {}μs (expected: {}μs)",
-                elapsed_us,
-                period_us
-            );
-        }
-
         Ok(())
     }
+
+    // /// Waits for DRDY pin to go low with timeout based on data rate
+    // fn wait_for_drdy(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
+    //     let period_us = (self.data_rate.period_ms() * 1000.0) as u32;
+    //     let timeout_us = (period_us as f64 * 2.5) as u32;
+    //     let poll_interval_us = (period_us / 10).max(100);
+    //     let warning_threshold = (period_us as f64 * 1.5) as u32;
+
+    //     let mut elapsed_us = 0;
+
+    //     while self.drdy.is_high().map_err(Ads1256Error::Gpio)? {
+    //         if elapsed_us >= timeout_us {
+    //             return Err(Ads1256Error::DrdyTimeout {
+    //                 current_state: true,
+    //                 wait_time: elapsed_us,
+    //             });
+    //         }
+
+    //         if elapsed_us >= warning_threshold {
+    //             log::warn!(
+    //                 "DRDY taking longer than expected: {}μs vs {}μs expected",
+    //                 elapsed_us,
+    //                 period_us
+    //             );
+    //         }
+
+    //         self.delay.delay_us(poll_interval_us);
+    //         elapsed_us += poll_interval_us;
+    //     }
+
+    //     if elapsed_us > warning_threshold {
+    //         log::debug!(
+    //             "DRDY conversion completed in {}μs (expected: {}μs)",
+    //             elapsed_us,
+    //             period_us
+    //         );
+    //     }
+
+    //     Ok(())
+    // }
+
+    // /// Waits for DRDY pin to go high with timeout based on data rate
+    // fn wait_for_drdy_high(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
+    //     let period_us = (self.data_rate.period_ms() * 1000.0) as u32;
+    //     let timeout_us = (period_us as f64 * 2.5) as u32;
+    //     let poll_interval_us = (period_us / 10).max(100);
+    //     let warning_threshold = (period_us as f64 * 1.5) as u32;
+
+    //     let mut elapsed_us = 0;
+
+    //     while self.drdy.is_low().map_err(Ads1256Error::Gpio)? {
+    //         if elapsed_us >= timeout_us {
+    //             return Err(Ads1256Error::DrdyTimeout {
+    //                 current_state: false,
+    //                 wait_time: elapsed_us,
+    //             });
+    //         }
+
+    //         if elapsed_us >= warning_threshold {
+    //             log::warn!(
+    //                 "DRDY high transition taking longer than expected: {}μs vs {}μs expected",
+    //                 elapsed_us,
+    //                 period_us
+    //             );
+    //         }
+
+    //         self.delay.delay_us(poll_interval_us);
+    //         elapsed_us += poll_interval_us;
+    //     }
+
+    //     if elapsed_us > warning_threshold {
+    //         log::debug!(
+    //             "DRDY high transition completed in {}μs (expected: {}μs)",
+    //             elapsed_us,
+    //             period_us
+    //         );
+    //     }
+
+    //     Ok(())
+    // }
 
     /// Reads raw data from the ADC
     pub fn read_data(&mut self) -> Result<i32, Ads1256Error<SpiError, GpioError>> {
