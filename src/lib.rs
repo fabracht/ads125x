@@ -12,7 +12,7 @@ pub mod nb;
 pub use constants::{DataRate, Gain};
 pub use driver::Ads1256;
 pub use error::Ads1256Error;
-pub use nb::{Ads1256Ext, Ads1256NonBlocking};
+pub use nb::Ads1256NonBlocking;
 
 #[cfg(test)]
 mod tests {

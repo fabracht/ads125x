@@ -1,10 +1,10 @@
 use crate::{Ads1256, Ads1256Error};
 use core::fmt::Debug;
+use core::future::Future;
 use embedded_hal::delay::DelayNs;
 use embedded_hal::digital::InputPin;
 use embedded_hal::digital::OutputPin;
 use embedded_hal::spi::SpiDevice;
-use nb::block;
 
 use crate::constants::*;
 
@@ -63,18 +63,34 @@ where
     }
 }
 
-/// Extension trait to add blocking operations
-pub trait Ads1256Ext: Ads1256NonBlocking {
-    /// Perform a blocking read
-    ///
-    /// This method will block until a conversion is complete.
-    fn read_blocking(&mut self) -> Result<i32, Self::Error> {
-        self.start_conversion()?;
-        Ok(block!(self.read_conversion())?)
+impl<SpiError, GpioError> Future
+    for dyn Ads1256NonBlocking<Error = Ads1256Error<SpiError, GpioError>>
+where
+    SpiError: Debug,
+    GpioError: Debug,
+{
+    type Output = Result<i32, Ads1256Error<SpiError, GpioError>>;
+
+    fn poll(
+        self: core::pin::Pin<&mut Self>,
+        cx: &mut core::task::Context<'_>,
+    ) -> core::task::Poll<Self::Output> {
+        // SAFETY: Since we are dealing with a trait object, self is not structurally pinned,
+        // but this is fine because we're only working with methods that do not rely on pin guarantees.
+        let this = unsafe { self.get_unchecked_mut() };
+
+        // Attempt to read the conversion result
+        match this.read_conversion() {
+            Ok(result) => core::task::Poll::Ready(Ok(result)),
+            Err(nb::Error::WouldBlock) => {
+                // Conversion is not ready; request the executor to poll again
+                cx.waker().wake_by_ref();
+                core::task::Poll::Pending
+            }
+            Err(nb::Error::Other(err)) => core::task::Poll::Ready(Err(err)),
+        }
     }
 }
-
-impl<T: Ads1256NonBlocking> Ads1256Ext for T {}
 
 #[cfg(feature = "defmt")]
 impl<SpiError, GpioError> defmt::Format for Ads1256Error<SpiError, GpioError>
