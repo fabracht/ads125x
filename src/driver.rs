@@ -266,12 +266,12 @@ where
     /// Converts raw ADC code to voltage
     pub fn code_to_voltage(&self, code: i32) -> f64 {
         // Assuming VREF is 2.5V and PGA gain is 1
-        let vref = 2.5;
+        let v_ref = 2.5;
         let gain = self.gain.value();
-        let max_code = 8388607; // Maximum positive ADC value (2^23 - 1)
+        let max_code = 8388607.0; // Maximum positive ADC value (2^23 - 1)
 
         // Convert code to voltage
-        (code as f64) * (vref / (gain * max_code as f64))
+        (code as f64 * (2.0 * v_ref)) / (gain * max_code)
     }
 
     pub fn set_buffer_enabled(
