@@ -213,86 +213,6 @@ where
         Ok(())
     }
 
-    // /// Waits for DRDY pin to go low with timeout based on data rate
-    // fn wait_for_drdy(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
-    //     let period_us = (self.data_rate.period_ms() * 1000.0) as u32;
-    //     let timeout_us = (period_us as f64 * 2.5) as u32;
-    //     let poll_interval_us = (period_us / 10).max(100);
-    //     let warning_threshold = (period_us as f64 * 1.5) as u32;
-
-    //     let mut elapsed_us = 0;
-
-    //     while self.drdy.is_high().map_err(Ads1256Error::Gpio)? {
-    //         if elapsed_us >= timeout_us {
-    //             return Err(Ads1256Error::DrdyTimeout {
-    //                 current_state: true,
-    //                 wait_time: elapsed_us,
-    //             });
-    //         }
-
-    //         if elapsed_us >= warning_threshold {
-    //             log::warn!(
-    //                 "DRDY taking longer than expected: {}μs vs {}μs expected",
-    //                 elapsed_us,
-    //                 period_us
-    //             );
-    //         }
-
-    //         self.delay.delay_us(poll_interval_us);
-    //         elapsed_us += poll_interval_us;
-    //     }
-
-    //     if elapsed_us > warning_threshold {
-    //         log::debug!(
-    //             "DRDY conversion completed in {}μs (expected: {}μs)",
-    //             elapsed_us,
-    //             period_us
-    //         );
-    //     }
-
-    //     Ok(())
-    // }
-
-    // /// Waits for DRDY pin to go high with timeout based on data rate
-    // fn wait_for_drdy_high(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
-    //     let period_us = (self.data_rate.period_ms() * 1000.0) as u32;
-    //     let timeout_us = (period_us as f64 * 2.5) as u32;
-    //     let poll_interval_us = (period_us / 10).max(100);
-    //     let warning_threshold = (period_us as f64 * 1.5) as u32;
-
-    //     let mut elapsed_us = 0;
-
-    //     while self.drdy.is_low().map_err(Ads1256Error::Gpio)? {
-    //         if elapsed_us >= timeout_us {
-    //             return Err(Ads1256Error::DrdyTimeout {
-    //                 current_state: false,
-    //                 wait_time: elapsed_us,
-    //             });
-    //         }
-
-    //         if elapsed_us >= warning_threshold {
-    //             log::warn!(
-    //                 "DRDY high transition taking longer than expected: {}μs vs {}μs expected",
-    //                 elapsed_us,
-    //                 period_us
-    //             );
-    //         }
-
-    //         self.delay.delay_us(poll_interval_us);
-    //         elapsed_us += poll_interval_us;
-    //     }
-
-    //     if elapsed_us > warning_threshold {
-    //         log::debug!(
-    //             "DRDY high transition completed in {}μs (expected: {}μs)",
-    //             elapsed_us,
-    //             period_us
-    //         );
-    //     }
-
-    //     Ok(())
-    // }
-
     /// Reads raw data from the ADC
     pub fn read_data(&mut self) -> Result<i32, Ads1256Error<SpiError, GpioError>> {
         // self.wait_for_drdy()?;
@@ -608,5 +528,92 @@ where
         self.pdwn.set_high().map_err(Ads1256Error::Gpio)?;
         self.delay.delay_ms(30); // Wait for oscillator startup
         Ok(())
+    }
+
+    /// Cycles to a new channel using the optimized sequence from the datasheet.
+    /// This method follows the recommended sequence:
+    /// 1. Update MUX register when DRDY is low
+    /// 2. Issue SYNC and WAKEUP commands
+    /// 3. Return data from previous conversion
+    ///
+    /// Returns the data from the previous channel's conversion.
+    pub fn cycle_channel(&mut self, channel: u8) -> Result<i32, Ads1256Error<SpiError, GpioError>> {
+        // Wait for DRDY to ensure we can change the MUX
+        self.wait_for_drdy()?;
+
+        // Set the new channel in MUX register
+        // Check if channel number is within valid range
+        if channel > 7 {
+            return Err(Ads1256Error::InvalidInputChannel);
+        }
+
+        // Set AINP to the desired channel (AIN0 to AIN7)
+        let positive = channel & 0x07;
+        // Set AINN to AINCOM
+        let negative = 0x08;
+        // Construct MUX register value
+        let mux = (positive << 4) | negative;
+
+        log::debug!(
+            "Setting MUX register to: 0x{:02X} (AINP = AIN{}, AINN = AINCOM)",
+            mux,
+            positive
+        );
+
+        // Write to MUX register
+        self.write_register(REG_MUX, &[mux])?;
+
+        // Restart conversion process with SYNC and WAKEUP
+        self.send_command(CMD_SYNC)?;
+        self.delay.delay_us(100); // t11 delay between commands
+        self.send_command(CMD_WAKEUP)?;
+
+        // Wait for DRDY to go high and then low (new data ready)
+        self.wait_for_drdy_high()?; // Wait for DRDY to go high
+        self.wait_for_drdy()?; // Wait for DRDY to go low
+
+        // Read and return the data from the previous conversion
+        self.read_data()
+    }
+
+    /// Cycles to a new differential input channel pair using the optimized sequence.
+    /// This method allows selecting both positive and negative inputs for differential measurements.
+    pub fn cycle_differential_channel(
+        &mut self,
+        positive: u8,
+        negative: u8,
+    ) -> Result<i32, Ads1256Error<SpiError, GpioError>> {
+        // Wait for DRDY to ensure we can change the MUX
+        self.wait_for_drdy()?;
+
+        // Validate inputs
+        if positive > 7 || negative > 7 {
+            return Err(Ads1256Error::InvalidInputChannel);
+        }
+
+        // Construct MUX register value
+        let mux = (positive << 4) | negative;
+
+        log::debug!(
+            "Setting MUX register to: 0x{:02X} (AINP = AIN{}, AINN = AIN{})",
+            mux,
+            positive,
+            negative
+        );
+
+        // Write to MUX register
+        self.write_register(REG_MUX, &[mux])?;
+
+        // Restart conversion process with SYNC and WAKEUP
+        self.send_command(CMD_SYNC)?;
+        self.delay.delay_us(100); // t11 delay between commands
+        self.send_command(CMD_WAKEUP)?;
+
+        // Wait for DRDY to go high and then low (new data ready)
+        self.wait_for_drdy_high()?; // Wait for DRDY to go high
+        self.wait_for_drdy()?; // Wait for DRDY to go low
+
+        // Read and return the data from the previous conversion
+        self.read_data()
     }
 }
