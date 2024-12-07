@@ -144,50 +144,6 @@ where
         Ok(())
     }
 
-    // fn wait_for_drdy(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
-    //     let period_us = (self.data_rate.period_ms() * 1000.0) as u32;
-    //     let max_attempts = 5; // Allow for a few periods worth of waiting
-    //     let mut attempts = 0;
-
-    //     while attempts < max_attempts {
-    //         // Check DRDY state
-    //         if !self.drdy.is_high().map_err(Ads1256Error::Gpio)? {
-    //             return Ok(());
-    //         }
-
-    //         // Wait for one period
-    //         self.delay.delay_us(period_us);
-    //         attempts += 1;
-    //     }
-
-    //     Err(Ads1256Error::DrdyTimeout {
-    //         current_state: true,
-    //         wait_time: period_us * max_attempts,
-    //     })
-    // }
-
-    // fn wait_for_drdy_high(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
-    //     let period_us = (self.data_rate.period_ms() * 1000.0) as u32;
-    //     let max_attempts = 5; // Allow for a few periods worth of waiting
-    //     let mut attempts = 0;
-
-    //     while attempts < max_attempts {
-    //         // Check DRDY state
-    //         if self.drdy.is_high().map_err(Ads1256Error::Gpio)? {
-    //             return Ok(());
-    //         }
-
-    //         // Wait for one period
-    //         self.delay.delay_us(period_us);
-    //         attempts += 1;
-    //     }
-
-    //     Err(Ads1256Error::DrdyTimeout {
-    //         current_state: false,
-    //         wait_time: period_us * max_attempts,
-    //     })
-    // }
-
     fn wait_for_drdy(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
         let timeout = 50000;
         for _ in 0..timeout {
