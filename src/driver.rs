@@ -159,6 +159,7 @@ where
     fn wait_for_drdy_high(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
         let mut attempts = 0;
         while self.drdy.is_low().map_err(Ads1256Error::Gpio)? {
+            self.data_rate.period_us();
             self.delay.delay_us(200);
             attempts += 1;
             if attempts > 50000 {
@@ -474,7 +475,7 @@ where
         self.pdwn.set_low().map_err(Ads1256Error::Gpio)?;
 
         // Wait for 20 DRDY periods (depends on the data rate)
-        let drdy_period_ms = self.data_rate.period_ms();
+        let drdy_period_ms = self.data_rate.period_us();
         self.delay.delay_ms((20.0 * drdy_period_ms) as u32);
 
         Ok(())

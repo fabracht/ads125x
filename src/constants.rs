@@ -83,24 +83,24 @@ pub enum DataRate {
 
 impl DataRate {
     /// Returns the sample period in milliseconds
-    pub fn period_ms(&self) -> f64 {
+    pub fn period_us(&self) -> f64 {
         match self {
-            DataRate::Sps30000 => 1.0 / 30000.0 * 1000.0,
-            DataRate::Sps15000 => 1.0 / 15000.0 * 1000.0,
-            DataRate::Sps7500 => 1.0 / 7500.0 * 1000.0,
-            DataRate::Sps3750 => 1.0 / 3750.0 * 1000.0,
-            DataRate::Sps2000 => 1.0 / 2000.0 * 1000.0,
-            DataRate::Sps1000 => 1.0,
-            DataRate::Sps500 => 2.0,
-            DataRate::Sps100 => 10.0,
-            DataRate::Sps60 => 16.67,
-            DataRate::Sps50 => 20.0,
-            DataRate::Sps30 => 33.33,
-            DataRate::Sps25 => 40.0,
-            DataRate::Sps15 => 66.67,
-            DataRate::Sps10 => 100.0,
-            DataRate::Sps5 => 200.0,
-            DataRate::Sps2_5 => 400.0,
+            DataRate::Sps30000 => 1.0 / 30000.0 * 1000_000.0,
+            DataRate::Sps15000 => 1.0 / 15000.0 * 1000_000.0,
+            DataRate::Sps7500 => 1.0 / 7500.0 * 1000_000.0,
+            DataRate::Sps3750 => 1.0 / 3750.0 * 1000_000.0,
+            DataRate::Sps2000 => 1.0 / 2000.0 * 1000_000.0,
+            DataRate::Sps1000 => 1.0 * 1000.0,
+            DataRate::Sps500 => 2.0 * 1000.0,
+            DataRate::Sps100 => 10.0 * 1000.0,
+            DataRate::Sps60 => 16.67 * 1000.0,
+            DataRate::Sps50 => 20.0 * 1000.0,
+            DataRate::Sps30 => 33.33 * 1000.0,
+            DataRate::Sps25 => 40.0 * 1000.0,
+            DataRate::Sps15 => 66.67 * 1000.0,
+            DataRate::Sps10 => 100.0 * 1000.0,
+            DataRate::Sps5 => 200.0 * 1000.0,
+            DataRate::Sps2_5 => 400.0 * 1000.0,
         }
     }
 }
