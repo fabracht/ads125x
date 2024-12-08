@@ -572,4 +572,89 @@ where
         // Read and return the data from the previous conversion
         self.read_data()
     }
+
+    /// Performs a single conversion in one-shot mode.
+    ///
+    /// This method:
+    /// 1. Enters standby mode
+    /// 2. Issues WAKEUP to start conversion
+    /// 3. Waits for modulator power-up and settling
+    /// 4. Reads data
+    /// 5. Returns to standby mode
+    ///
+    /// Returns the conversion result.
+    pub fn read_one_shot(&mut self) -> Result<i32, Ads1256Error<SpiError, GpioError>> {
+        // Enter standby mode
+        self.send_command(CMD_STANDBY)?;
+
+        // IMPORTANT: No SCLK activity while CS is low after STANDBY
+        // We ensure this by keeping CS high between commands
+        self.cs.set_high().map_err(Ads1256Error::Gpio)?;
+
+        // Start conversion by waking up
+        self.send_command(CMD_WAKEUP)?;
+
+        // Wait for modulator power-up (64 x 4 x τCLKIN)
+        // At 7.68MHz clock, this is approximately 33.3μs
+        self.delay.delay_us(34);
+
+        // Wait for settling and data to be ready
+        self.wait_for_drdy()?;
+
+        // Read the conversion result
+        let result = self.read_data()?;
+
+        // Return to standby mode
+        self.send_command(CMD_STANDBY)?;
+        self.cs.set_high().map_err(Ads1256Error::Gpio)?;
+
+        Ok(result)
+    }
+
+    /// Prepares the ADC for one-shot mode operation.
+    /// This is optional but can be used to ensure the ADC is in a known state
+    /// before starting one-shot conversions.
+    pub fn prepare_one_shot(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
+        // Stop any continuous read mode if active
+        self.send_command(CMD_SDATAC)?;
+
+        // Ensure we start in standby
+        self.send_command(CMD_STANDBY)?;
+        self.cs.set_high().map_err(Ads1256Error::Gpio)?;
+
+        Ok(())
+    }
+
+    /// Non-blocking version that starts a one-shot conversion
+    pub fn start_one_shot(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
+        // Exit standby to start conversion
+        self.send_command(CMD_WAKEUP)?;
+
+        // Wait for modulator power-up
+        self.delay.delay_us(34);
+
+        Ok(())
+    }
+
+    /// Checks if one-shot conversion is complete and reads the result if ready
+    pub fn read_one_shot_nb(&mut self) -> nb::Result<i32, Ads1256Error<SpiError, GpioError>> {
+        // Check if DRDY is low indicating data is ready
+        if self.drdy.is_high().map_err(Ads1256Error::Gpio)? {
+            return Err(nb::Error::WouldBlock);
+        }
+
+        // Read the conversion result
+        match self.read_data() {
+            Ok(value) => {
+                // Return to standby after successful read
+                self.send_command(CMD_STANDBY)
+                    .map_err(|e| nb::Error::Other(e))?;
+                self.cs
+                    .set_high()
+                    .map_err(|e| nb::Error::Other(Ads1256Error::Gpio(e)))?;
+                Ok(value)
+            }
+            Err(e) => Err(nb::Error::Other(e)),
+        }
+    }
 }
