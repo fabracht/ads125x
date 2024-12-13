@@ -1,157 +1,102 @@
-# ADS125x
+# ADS1256/ADS1255 Driver
 
-A `no_std` Rust driver for the ADS1255/ADS1256 24-bit analog-to-digital converters.
-
-[![Crates.io Version](https://img.shields.io/crates/v/ads125x.svg)](https://crates.io/crates/ads125x)
-[![Documentation](https://docs.rs/ads125x/badge.svg)](https://docs.rs/ads125x)
+A no_std driver for the ADS1255/ADS1256 24-bit analog-to-digital converter (ADC). This driver provides both blocking and non-blocking APIs for interfacing with Texas Instruments' ADS1255/ADS1256 high-precision ADCs.
 
 ## Features
 
-- Complete support for ADS1255/ADS1256 ADCs
-- Both blocking and non-blocking operation modes
-- Single-ended and differential measurements
-- Continuous channel sampling
-- Programmable gain amplifier (PGA) control
-- Flexible input multiplexer configuration
-- Calibration support (self and system)
-- Buffer control and sensor detection
+- Complete `no_std` support
+- Blocking and non-blocking (async) operation modes
+- Support for single-ended and differential measurements
+- Built-in calibration routines (self and system)
+- Configurable PGA gain settings (1-64)
+- Adjustable data rates (2.5 SPS to 30,000 SPS)
+- Flexible input multiplexer control
+- Buffer enable/disable support
+- Comprehensive error handling
+- Full register-level access when needed
 
 ## Hardware Support
 
-- 24-bit resolution
-- Data rates from 2.5 SPS to 30,000 SPS
-- Up to 8 single-ended or 4 differential inputs (ADS1256)
-- 2 single-ended or 1 differential input (ADS1255)
-- Programmable gain: 1x to 64x
-- SPI interface up to 7.68MHz
+The driver is built on embedded-hal 1.0 traits and supports:
 
-## Usage
+- SPI interface up to 10MHz
+- GPIO pins for CS, DRDY, and PDWN control
+- System clock configurations from 1-10MHz (7.68MHz typical)
 
-Add to your `Cargo.toml`:
+## Installation
+
+Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
 ads125x = "0.1.0"
 ```
 
-### Blocking Operation
+## Basic Usage
+
+### Blocking API Example
 
 ```rust
 use ads125x::{Ads1256, DataRate, Gain};
 
 fn main() -> Result<(), Error> {
-    let spi = // Initialize your SPI
-    let cs = // Initialize CS pin
-    let drdy = // Initialize DRDY pin
-    let pdwn = // Initialize PDWN pin
-    let delay = // Initialize delay provider
+    // Create SPI and GPIO instances
+    let spi = // ...
+    let cs = // ...
+    let drdy = // ...
+    let pdwn = // ...
+    let delay = // ...
 
-    let mut adc = Ads1256::new(spi, cs, drdy, pdwn, delay, Gain::Gain1, DataRate::Sps1000);
-    adc.init(true)?;
+    // Initialize ADC
+    let mut adc = Ads1256::new(spi, cs, drdy, pdwn, delay,
+        Gain::Gain1, DataRate::Sps1000);
+    adc.init(true)?; // true enables input buffer
 
-    // Single channel reading
+    // Single-ended measurement on AIN0
     adc.set_channel(0)?;
     let voltage = adc.read_voltage()?;
-
-    // Differential reading
-    adc.set_input_channel(0, 1)?;  // AIN0 = positive, AIN1 = negative
-    let diff_voltage = adc.read_voltage()?;
+    println!("Voltage: {:.6} V", voltage);
 
     Ok(())
 }
 ```
 
-### Non-blocking Operation
-
-The non-blocking API uses Rust's async/await to provide non-blocking ADC readings:
+### Non-Blocking API Example
 
 ```rust
-use ads125x::nonblocking::AdcConversion;
+use ads125x::nonblocking::Ads1256NonBlocking;
 
-async fn read_voltage(adc: &mut Ads1256<...>) -> Result<f64, Error> {
-    // Single channel non-blocking conversion
-    let conversion = AdcConversion::new_single_ended(adc, 0);
-    let raw = conversion.await?;
+async fn measure_voltage(mut adc: Ads1256NonBlocking<...>) -> Result<f64, Error> {
+    // Configure for AIN0
+    adc.set_channel(0).await?;
 
-    // Convert to voltage
-    Ok(adc.code_to_voltage(raw))
-}
+    // Start conversion and wait for result
+    let raw = adc.read_data().await?;
+    let voltage = adc.code_to_voltage(raw);
 
-async fn read_differential(adc: &mut Ads1256<...>) -> Result<f64, Error> {
-    // Differential non-blocking conversion
-    let conversion = AdcConversion::new_differential(adc, 0, 1);
-    let raw = conversion.await?;
-
-    Ok(adc.code_to_voltage(raw))
+    Ok(voltage)
 }
 ```
 
-### Continuous Channel Sampling
+## Advanced Usage
 
-For applications requiring sampling of multiple channels:
+### Differential Measurements
 
 ```rust
-use ads125x::nonblocking::ContinuousSampling;
+// Measure differential between AIN0 (P) and AIN1 (N)
+adc.set_input_channel(0, 1)?;
+let diff_voltage = adc.read_voltage()?;
+```
 
-async fn sample_channels(adc: &mut Ads1256<...>) -> Result<(), Error> {
-    // Define channels to sample
-    let channels = [0, 1, 2, 3];
+### Channel Cycling
 
-    // Create continuous sampling iterator
-    let mut sampling = ContinuousSampling::with_channels(adc, &channels);
-
-    // Sample all channels in sequence
-    while let Some(conversion) = sampling.next() {
-        let value = conversion.await?;
-        println!("Channel value: {}", value);
-    }
-
-    Ok(())
+```rust
+// Cycle through channels quickly
+let channels = [0, 1, 2, 3];
+for &channel in &channels {
+    let value = adc.cycle_channel(channel)?;
+    println!("CH{}: {}", channel, value);
 }
-
-// Or for differential measurements:
-async fn sample_differential_pairs(adc: &mut Ads1256<...>) -> Result<(), Error> {
-    // Define differential pairs (positive, negative)
-    let pairs = [(0, 1), (2, 3), (4, 5)];
-
-    let mut sampling = ContinuousSampling::with_differential_channels(adc, &pairs);
-
-    while let Some(conversion) = sampling.next() {
-        let value = conversion.await?;
-        println!("Differential value: {}", value);
-    }
-
-    Ok(())
-}
-```
-
-## Configuration
-
-### Data Rates
-
-Available sampling rates (at 7.68MHz clock):
-
-- 30,000 SPS to 2.5 SPS
-
-```rust
-adc.set_data_rate(DataRate::Sps15000)?;
-```
-
-### Gain Settings
-
-PGA gains from 1x to 64x:
-
-```rust
-adc.set_gain(Gain::Gain8)?;  // Sets PGA to 8x
-```
-
-## Advanced Features
-
-### Buffer Control
-
-```rust
-// Enable input buffer
-adc.set_buffer_enabled(true)?;
 ```
 
 ### Calibration
@@ -161,25 +106,120 @@ adc.set_buffer_enabled(true)?;
 adc.self_calibrate()?;
 
 // System calibration
-adc.system_offset_calibrate()?;
-adc.system_gain_calibrate()?;
+adc.system_offset_calibrate()?;  // With inputs shorted
+adc.system_gain_calibrate()?;    // With known reference
 ```
 
-### Sensor Detection
+### Register Access
 
 ```rust
-adc.set_sensor_detect_current(SensorDetectCurrent::Current_0_5uA)?;
+// Direct register operations if needed
+adc.write_register(REG_MUX, &[0x01])?;
+let mut status = [0u8; 1];
+adc.read_register(REG_STATUS, &mut status)?;
 ```
+
+### Power Management
+
+```rust
+// Enter standby mode
+adc.enter_standby()?;
+
+// Wake up
+adc.exit_standby()?;
+
+// Enter power-down
+adc.enter_power_down()?;
+```
+
+## Configuration Options
+
+### Gain Settings
+
+- Available gains: 1, 2, 4, 8, 16, 32, 64
+- Controlled via `Gain` enum
+- Affects input voltage range
+
+### Data Rates
+
+- Ranges from 2.5 SPS to 30,000 SPS
+- Tradeoff between speed and noise
+- Set via `DataRate` enum
+
+### Input Buffer
+
+- Can be enabled/disabled
+- Provides high input impedance when enabled
+- Some performance impact
+
+### Digital Interface
+
+- SPI mode 1 (CPOL=0, CPHA=1)
+- Maximum SCLK frequency: fCLKIN/4
+- CS, DRDY, PDWN control pins
+
+## Error Handling
+
+The driver uses a comprehensive error type that covers:
+
+- Communication errors (SPI, GPIO)
+- Configuration errors
+- Timing/state errors
+- Invalid parameter errors
+
+All operations return `Result<T, Ads1256Error<SpiError, GpioError>>`.
+
+## Advanced Topics
+
+### Non-Blocking Operation Details
+
+The non-blocking API provides:
+
+1. Future-based conversions
+2. Channel cycling
+3. Continuous sampling
+4. Async calibration
+
+Example of continuous sampling:
+
+```rust
+let channels = [0, 1, 2, 3];
+let mut sampling = ContinuousSampling::with_channels(&mut adc, &channels);
+
+while let Some(conversion) = sampling.next() {
+    let value = conversion.await?;
+    // Process value...
+}
+```
+
+### Performance Optimization
+
+1. Use appropriate data rate for application
+2. Consider buffer impact on measurements
+3. Optimize channel cycling sequence
+4. Use non-blocking API for better system utilization
+
+### Noise Considerations
+
+1. Use lower data rates for better noise rejection
+2. Enable input buffer for high-impedance sources
+3. Consider PGA settings impact on noise
+4. External filtering may be needed
+
+## Contributing
+
+Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## License
 
-Licensed under either of:
+Licensed under either:
 
-- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
-- MIT license ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
+- MIT license or
+- Apache License, Version 2.0
 
 at your option.
 
-## Contribution
+## Resources
 
-Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in the work by you shall be dual licensed as above, without any additional terms or conditions.
+- [ADS1256 Datasheet](https://www.ti.com/lit/ds/symlink/ads1256.pdf)
+- [Application Notes](https://www.ti.com/product/ADS1256#tech-docs)
