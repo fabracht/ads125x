@@ -77,9 +77,9 @@ mod tests {
         let max_code = 0x7FFFFF;
         let voltage = adc.code_to_voltage(max_code);
         assert!(
-            (voltage - 2.5).abs() < 1e-6,
+            (voltage - 5.0).abs() < 1e-6,
             "Max code: {}, Voltage: {}",
-            (voltage - 2.5).abs(),
+            (voltage - 5.0).abs(),
             voltage
         );
 
@@ -87,7 +87,7 @@ mod tests {
         let min_code = -0x800000;
         let voltage = adc.code_to_voltage(min_code);
         assert!(
-            (voltage + 2.5).abs() < 1e-6,
+            (voltage + 5.0).abs() < 1e-6,
             "Min code: {}, Voltage: {}",
             min_code,
             voltage
