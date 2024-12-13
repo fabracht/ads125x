@@ -97,8 +97,8 @@ impl<'a, SPI, CS, DRDY, PDWN, DELAY, GpioError>
     }
 }
 
-impl<'a, SPI, CS, DRDY, PDWN, DELAY, SpiError, GpioError> Future
-    for AdcConversion<'a, SPI, CS, DRDY, PDWN, DELAY, GpioError>
+impl<SPI, CS, DRDY, PDWN, DELAY, SpiError, GpioError> Future
+    for AdcConversion<'_, SPI, CS, DRDY, PDWN, DELAY, GpioError>
 where
     SPI: SpiDevice<Error = SpiError>,
     CS: OutputPin<Error = GpioError>,
@@ -192,8 +192,8 @@ pub trait LendingIterator {
     fn next(&mut self) -> Option<Self::Item<'_>>;
 }
 
-impl<'a, SPI, CS, DRDY, PDWN, DELAY, SpiError, GpioError, const N: usize> LendingIterator
-    for ContinuousSampling<'a, SPI, CS, DRDY, PDWN, DELAY, GpioError, N>
+impl<SPI, CS, DRDY, PDWN, DELAY, SpiError, GpioError, const N: usize> LendingIterator
+    for ContinuousSampling<'_, SPI, CS, DRDY, PDWN, DELAY, GpioError, N>
 where
     SPI: SpiDevice<Error = SpiError>,
     CS: OutputPin<Error = GpioError>,
@@ -201,7 +201,10 @@ where
     PDWN: OutputPin<Error = GpioError>,
     DELAY: DelayNs,
 {
-    type Item<'b> = AdcConversion<'b, SPI, CS, DRDY, PDWN, DELAY, GpioError> where Self: 'b;
+    type Item<'b>
+        = AdcConversion<'b, SPI, CS, DRDY, PDWN, DELAY, GpioError>
+    where
+        Self: 'b;
 
     fn next(&mut self) -> Option<Self::Item<'_>> {
         if let Some(channels) = self.channels {

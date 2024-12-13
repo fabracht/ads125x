@@ -25,6 +25,12 @@ jobs:
           override: true
           components: rustfmt, clippy
 
+      - name: Show Rust Version
+        run: |
+          rustc --version
+          cargo --version
+          cargo clippy --version
+
       - name: Build
         uses: actions-rs/cargo@v1
         with:
