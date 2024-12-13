@@ -24,6 +24,10 @@ jobs:
           toolchain: stable
           override: true
 
+      - name: Get version
+        id: version
+        run: echo "version=$(cargo pkgid | cut -d# -f2)" >> $GITHUB_OUTPUT
+
       - name: Publish to crates.io
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
@@ -39,9 +43,10 @@ jobs:
 
       - name: Update dev branch
         run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
           git checkout dev
           git merge main
-          # Update to next development version
           cargo release replace --version $(cargo pkgid | cut -d# -f2)-dev
           git commit -am "chore: Start next development iteration"
           git push origin dev
