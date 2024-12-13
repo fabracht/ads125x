@@ -7,18 +7,14 @@ A `no_std` Rust driver for the ADS1255/ADS1256 24-bit analog-to-digital converte
 
 ## Features
 
-- Full support for both ADS1255 and ADS1256 variants
-- Implementation of all ADC operating modes:
-  - Single-shot conversions
-  - Continuous sampling
-  - Channel cycling
-  - Differential measurements
-- Non-blocking operation support with async/await
+- Complete support for ADS1255/ADS1256 ADCs
+- Both blocking and non-blocking operation modes
+- Single-ended and differential measurements
+- Continuous channel sampling
 - Programmable gain amplifier (PGA) control
 - Flexible input multiplexer configuration
-- Built-in self and system calibration
-- Buffer control and sensor detect functionality
-- Complete error handling with descriptive error types
+- Calibration support (self and system)
+- Buffer control and sensor detection
 
 ## Hardware Support
 
@@ -26,19 +22,19 @@ A `no_std` Rust driver for the ADS1255/ADS1256 24-bit analog-to-digital converte
 - Data rates from 2.5 SPS to 30,000 SPS
 - Up to 8 single-ended or 4 differential inputs (ADS1256)
 - 2 single-ended or 1 differential input (ADS1255)
-- Programmable gain from 1x to 64x
-- SPI interface with clock rates up to 7.68MHz
+- Programmable gain: 1x to 64x
+- SPI interface up to 7.68MHz
 
 ## Usage
 
-Add this to your `Cargo.toml`:
+Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
 ads125x = "0.1.0"
 ```
 
-### Basic Example
+### Blocking Operation
 
 ```rust
 use ads125x::{Ads1256, DataRate, Gain};
@@ -50,16 +46,16 @@ fn main() -> Result<(), Error> {
     let pdwn = // Initialize PDWN pin
     let delay = // Initialize delay provider
 
-    // Create ADC instance
     let mut adc = Ads1256::new(spi, cs, drdy, pdwn, delay, Gain::Gain1, DataRate::Sps1000);
-
-    // Initialize with buffer enabled
     adc.init(true)?;
 
-    // Read voltage from channel 0
+    // Single channel reading
     adc.set_channel(0)?;
     let voltage = adc.read_voltage()?;
-    println!("Voltage: {:.6} V", voltage);
+
+    // Differential reading
+    adc.set_input_channel(0, 1)?;  // AIN0 = positive, AIN1 = negative
+    let diff_voltage = adc.read_voltage()?;
 
     Ok(())
 }
@@ -67,19 +63,32 @@ fn main() -> Result<(), Error> {
 
 ### Non-blocking Operation
 
+The non-blocking API uses Rust's async/await to provide non-blocking ADC readings:
+
 ```rust
 use ads125x::nonblocking::AdcConversion;
 
 async fn read_voltage(adc: &mut Ads1256<...>) -> Result<f64, Error> {
-    // Start a non-blocking conversion
-    let raw = AdcConversion::new(adc).await?;
+    // Single channel non-blocking conversion
+    let conversion = AdcConversion::new_single_ended(adc, 0);
+    let raw = conversion.await?;
 
     // Convert to voltage
+    Ok(adc.code_to_voltage(raw))
+}
+
+async fn read_differential(adc: &mut Ads1256<...>) -> Result<f64, Error> {
+    // Differential non-blocking conversion
+    let conversion = AdcConversion::new_differential(adc, 0, 1);
+    let raw = conversion.await?;
+
     Ok(adc.code_to_voltage(raw))
 }
 ```
 
 ### Continuous Channel Sampling
+
+For applications requiring sampling of multiple channels:
 
 ```rust
 use ads125x::nonblocking::ContinuousSampling;
@@ -91,7 +100,7 @@ async fn sample_channels(adc: &mut Ads1256<...>) -> Result<(), Error> {
     // Create continuous sampling iterator
     let mut sampling = ContinuousSampling::with_channels(adc, &channels);
 
-    // Sample each channel in sequence
+    // Sample all channels in sequence
     while let Some(conversion) = sampling.next() {
         let value = conversion.await?;
         println!("Channel value: {}", value);
@@ -99,65 +108,44 @@ async fn sample_channels(adc: &mut Ads1256<...>) -> Result<(), Error> {
 
     Ok(())
 }
+
+// Or for differential measurements:
+async fn sample_differential_pairs(adc: &mut Ads1256<...>) -> Result<(), Error> {
+    // Define differential pairs (positive, negative)
+    let pairs = [(0, 1), (2, 3), (4, 5)];
+
+    let mut sampling = ContinuousSampling::with_differential_channels(adc, &pairs);
+
+    while let Some(conversion) = sampling.next() {
+        let value = conversion.await?;
+        println!("Differential value: {}", value);
+    }
+
+    Ok(())
+}
 ```
 
-### Differential Measurements
-
-```rust
-// Configure differential measurement between AIN0 (positive) and AIN1 (negative)
-adc.set_input_channel(0, 1)?;
-let voltage = adc.read_voltage()?;
-```
-
-## Configuration Options
+## Configuration
 
 ### Data Rates
 
 Available sampling rates (at 7.68MHz clock):
 
-- 30,000 SPS
-- 15,000 SPS
-- 7,500 SPS
-- 3,750 SPS
-- 2,000 SPS
-- 1,000 SPS
-- 500 SPS
-- 100 SPS
-- 60 SPS
-- 50 SPS
-- 30 SPS
-- 25 SPS
-- 15 SPS
-- 10 SPS
-- 5 SPS
-- 2.5 SPS
+- 30,000 SPS to 2.5 SPS
+
+```rust
+adc.set_data_rate(DataRate::Sps15000)?;
+```
 
 ### Gain Settings
 
-Available PGA gains:
-
-- 1x (default)
-- 2x
-- 4x
-- 8x
-- 16x
-- 32x
-- 64x
-
-## Advanced Features
-
-### Calibration
+PGA gains from 1x to 64x:
 
 ```rust
-// Perform self-calibration
-adc.self_calibrate()?;
-
-// System offset calibration (with inputs shorted)
-adc.system_offset_calibrate()?;
-
-// System gain calibration (with known reference)
-adc.system_gain_calibrate()?;
+adc.set_gain(Gain::Gain8)?;  // Sets PGA to 8x
 ```
+
+## Advanced Features
 
 ### Buffer Control
 
@@ -166,10 +154,20 @@ adc.system_gain_calibrate()?;
 adc.set_buffer_enabled(true)?;
 ```
 
+### Calibration
+
+```rust
+// Self calibration
+adc.self_calibrate()?;
+
+// System calibration
+adc.system_offset_calibrate()?;
+adc.system_gain_calibrate()?;
+```
+
 ### Sensor Detection
 
 ```rust
-// Configure sensor detect current sources
 adc.set_sensor_detect_current(SensorDetectCurrent::Current_0_5uA)?;
 ```
 
@@ -184,4 +182,4 @@ at your option.
 
 ## Contribution
 
-Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in the work by you, as defined in the Apache-2.0 license, shall be dual licensed as above, without any additional terms or conditions.
+Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in the work by you shall be dual licensed as above, without any additional terms or conditions.
