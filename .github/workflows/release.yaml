@@ -63,10 +63,10 @@ jobs:
             # Use sed to update version in Cargo.toml
             sed -i "s/^version = \".*\"/version = \"${NEW_VERSION}\"/" Cargo.toml
             
-            # Commit and push changes
+            # Commit and force push changes
             git add Cargo.toml
             git commit -m "chore: add dev suffix to version ${NEW_VERSION}"
-            git push origin dev
+            git push --force origin HEAD:dev
           fi
 
       - name: Remove dev suffix and bump version
