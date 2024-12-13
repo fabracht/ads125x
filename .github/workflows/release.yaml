@@ -62,7 +62,7 @@ jobs:
           CURRENT_VERSION=$(cargo pkgid | cut -d# -f2)
           if [[ ! $CURRENT_VERSION =~ -dev$ ]]; then
             echo "Adding -dev suffix to current version"
-            cargo release replace --version "${CURRENT_VERSION}-dev"
+            cargo release set-version "${CURRENT_VERSION}-dev"
             git add Cargo.toml Cargo.lock
             git commit -m "chore: add dev suffix to version"
             git push origin dev
@@ -71,18 +71,14 @@ jobs:
       - name: Remove dev suffix and bump version
         if: ${{ !inputs.dry-run }}
         run: |
-          # Get current version before bump
           OLD_VERSION=$(cargo pkgid | cut -d# -f2)
           echo "Old version: $OLD_VERSION"
           
-          # Calculate new version by removing -dev suffix
           NEW_VERSION=$(echo $OLD_VERSION | sed 's/-dev$//')
           echo "Calculated release version: $NEW_VERSION"
           
-          # Update version
-          cargo release replace --version "$NEW_VERSION"
+          cargo release set-version "$NEW_VERSION"
           
-          # Stage and commit changes
           git add Cargo.toml Cargo.lock
           git commit -m "chore: release version $NEW_VERSION"
           
