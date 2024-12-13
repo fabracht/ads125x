@@ -23,6 +23,47 @@ The driver is built on embedded-hal 1.0 traits and supports:
 - GPIO pins for CS, DRDY, and PDWN control
 - System clock configurations from 1-10MHz (7.68MHz typical)
 
+## Development Setup
+
+This project uses Visual Studio Code Dev Containers for development. This ensures a consistent development environment for all contributors.
+
+### Prerequisites
+
+1. [Docker](https://www.docker.com/get-started)
+2. [Visual Studio Code](https://code.visualstudio.com/)
+3. [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
+
+### Getting Started with Dev Container
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/fabracht/ads125x.git
+   cd ads125x
+   ```
+
+2. Open the project in VS Code:
+   ```bash
+   code .
+   ```
+
+3. When prompted, click "Reopen in Container" or press `F1` and select "Dev Containers: Reopen in Container"
+
+The container will be built automatically with all necessary dependencies installed. This includes:
+- Rust toolchain
+- Required system packages
+- GitHub CLI
+- Development tools and extensions
+
+### Building and Testing
+
+Once inside the dev container, you can use standard cargo commands:
+
+```bash
+cargo build
+cargo test
+cargo clippy
+```
+
 ## Installation
 
 Add this to your `Cargo.toml`:
