@@ -7,7 +7,7 @@
 	"features": {
 		"ghcr.io/devcontainers/features/github-cli:1": {},
 		"ghcr.io/devcontainers-extra/features/apt-packages:1": {}
-	}
+	},
 
 	// Use 'mounts' to make the cargo cache persistent in a Docker Volume.
 	// "mounts": [
@@ -17,7 +17,9 @@
 	// 		"type": "volume"
 	// 	}
 	// ]
-
+	"mounts": [
+		"source=${localEnv:HOME}${localEnv:USERPROFILE}/.ssh,target=/home/vscode/.ssh,type=bind,consistency=cached"
+	]
 	// Features to add to the dev container. More info: https://containers.dev/features.
 	// "features": {},
 
