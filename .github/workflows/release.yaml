@@ -59,6 +59,10 @@ jobs:
       - name: Remove dev suffix and bump version
         if: ${{ !inputs.dry-run }}
         run: |
+          # Get current version before bump
+          OLD_VERSION=$(cargo pkgid | cut -d# -f2)
+          echo "Old version: $OLD_VERSION"
+          
           # Remove -dev suffix and bump version
           cargo release ${{ inputs.level }} --execute --no-publish --no-push --no-tag 
           
@@ -66,6 +70,10 @@ jobs:
           VERSION=$(cargo pkgid | cut -d# -f2)
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "New version will be: $VERSION"
+          
+          # Stage the changed files
+          git add Cargo.toml Cargo.lock
+          git commit -m "chore: release version $VERSION"
 
       - name: Create Pull Request to main
         if: ${{ !inputs.dry-run }}
