@@ -56,6 +56,18 @@ jobs:
           echo "Current ref: ${{ github.ref }}"
           echo "Is dry run: ${{ inputs.dry-run }}"
 
+      - name: Ensure dev suffix exists
+        if: ${{ !inputs.dry-run }}
+        run: |
+          CURRENT_VERSION=$(cargo pkgid | cut -d# -f2)
+          if [[ ! $CURRENT_VERSION =~ -dev$ ]]; then
+            echo "Adding -dev suffix to current version"
+            cargo release replace --version "${CURRENT_VERSION}-dev"
+            git add Cargo.toml Cargo.lock
+            git commit -m "chore: add dev suffix to version"
+            git push origin dev
+          fi
+
       - name: Remove dev suffix and bump version
         if: ${{ !inputs.dry-run }}
         run: |
@@ -63,17 +75,18 @@ jobs:
           OLD_VERSION=$(cargo pkgid | cut -d# -f2)
           echo "Old version: $OLD_VERSION"
           
-          # Remove -dev suffix and bump version
-          cargo release ${{ inputs.level }} --execute --no-publish --no-push --no-tag 
+          # Calculate new version by removing -dev suffix
+          NEW_VERSION=$(echo $OLD_VERSION | sed 's/-dev$//')
+          echo "Calculated release version: $NEW_VERSION"
           
-          # Get the new version
-          VERSION=$(cargo pkgid | cut -d# -f2)
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-          echo "New version will be: $VERSION"
+          # Update version
+          cargo release replace --version "$NEW_VERSION"
           
-          # Stage the changed files
+          # Stage and commit changes
           git add Cargo.toml Cargo.lock
-          git commit -m "chore: release version $VERSION"
+          git commit -m "chore: release version $NEW_VERSION"
+          
+          echo "VERSION=$NEW_VERSION" >> $GITHUB_ENV
 
       - name: Create Pull Request to main
         if: ${{ !inputs.dry-run }}
@@ -88,7 +101,7 @@ jobs:
             
             This PR:
             1. Removes the -dev suffix
-            2. Bumps the version to ${{ env.VERSION }}
+            2. Sets the version to ${{ env.VERSION }}
             
             After merging:
             1. The release workflow will automatically:
@@ -99,4 +112,7 @@ jobs:
       - name: Show version changes (dry run)
         if: ${{ inputs.dry-run }}
         run: |
-          cargo release ${{ inputs.level }} --no-publish --no-push --no-tag
+          CURRENT_VERSION=$(cargo pkgid | cut -d# -f2)
+          echo "Current version: $CURRENT_VERSION"
+          RELEASE_VERSION=$(echo $CURRENT_VERSION | sed 's/-dev$//')
+          echo "Would release as: $RELEASE_VERSION"
