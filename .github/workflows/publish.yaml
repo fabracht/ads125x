@@ -7,10 +7,14 @@ on:
     branches:
       - main
 
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   publish:
     runs-on: ubuntu-latest
-    if: github.event.pull_request.merged == true
+    if: github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'release-')
     steps:
       - uses: actions/checkout@v3
         with:
@@ -24,9 +28,18 @@ jobs:
           toolchain: stable
           override: true
 
+      - name: Debug Info
+        run: |
+          echo "Current branch: $(git branch --show-current)"
+          echo "PR branch: ${{ github.event.pull_request.head.ref }}"
+          echo "PR title: ${{ github.event.pull_request.title }}"
+
       - name: Get version
         id: version
-        run: echo "version=$(cargo pkgid | cut -d# -f2)" >> $GITHUB_OUTPUT
+        run: |
+          VERSION=$(cargo pkgid | cut -d# -f2)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version to be published: $VERSION"
 
       - name: Publish to crates.io
         env:
@@ -38,6 +51,7 @@ jobs:
         with:
           tag_name: v${{ steps.version.outputs.version }}
           generate_release_notes: true
+          title: "Release v${{ steps.version.outputs.version }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -45,8 +59,19 @@ jobs:
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
+          
+          # Fetch all branches
+          git fetch origin
+          
+          # Checkout dev branch
           git checkout dev
-          git merge main
+          
+          # Merge main into dev
+          git merge origin/main
+          
+          # Update to next development version
           cargo release replace --version $(cargo pkgid | cut -d# -f2)-dev
+          
+          # Commit and push changes
           git commit -am "chore: Start next development iteration"
           git push origin dev
