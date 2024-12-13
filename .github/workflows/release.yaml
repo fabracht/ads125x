@@ -1,5 +1,4 @@
 # .github/workflows/release.yml
----
 name: Release
 
 on:
@@ -19,6 +18,10 @@ on:
         required: true
         default: true
         type: boolean
+
+permissions:
+  contents: write
+  pull-requests: write
 
 jobs:
   prepare-release:
@@ -47,11 +50,22 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
 
+      - name: Debug Info
+        run: |
+          echo "Current branch: $(git branch --show-current)"
+          echo "Current ref: ${{ github.ref }}"
+          echo "Is dry run: ${{ inputs.dry-run }}"
+
       - name: Remove dev suffix and bump version
         if: ${{ !inputs.dry-run }}
         run: |
           # Remove -dev suffix and bump version
-          cargo release ${{ inputs.level }} --no-publish --no-push --no-tag --execute
+          cargo release ${{ inputs.level }} --execute --no-publish --no-push --no-tag 
+          
+          # Get the new version
+          VERSION=$(cargo pkgid | cut -d# -f2)
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "New version will be: $VERSION"
 
       - name: Create Pull Request to main
         if: ${{ !inputs.dry-run }}
@@ -60,14 +74,14 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           branch: release-${{ inputs.level }}
           base: main
-          title: "Release ${{ inputs.level }} version"
+          title: "🚀 Release ${{ env.VERSION }}"
           body: |
             Automated release PR from dev to main.
-
+            
             This PR:
             1. Removes the -dev suffix
-            2. Bumps the version according to ${{ inputs.level }} level
-
+            2. Bumps the version to ${{ env.VERSION }}
+            
             After merging:
             1. The release workflow will automatically:
                - Create a GitHub release
