@@ -1,0 +1,80 @@
+# .github/workflows/release.yml
+---
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      level:
+        description: "Release level (major, minor, patch)"
+        required: true
+        default: "patch"
+        type: choice
+        options:
+          - major
+          - minor
+          - patch
+      dry-run:
+        description: "Dry run"
+        required: true
+        default: true
+        type: boolean
+
+jobs:
+  prepare-release:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/dev'
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+
+      - name: Install cargo-release
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-release
+
+      - name: Configure Git
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+
+      - name: Remove dev suffix and bump version
+        if: ${{ !inputs.dry-run }}
+        run: |
+          # Remove -dev suffix and bump version
+          cargo release ${{ inputs.level }} --no-publish --no-push --no-tag --execute
+
+      - name: Create Pull Request to main
+        if: ${{ !inputs.dry-run }}
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: release-${{ inputs.level }}
+          base: main
+          title: "Release ${{ inputs.level }} version"
+          body: |
+            Automated release PR from dev to main.
+
+            This PR:
+            1. Removes the -dev suffix
+            2. Bumps the version according to ${{ inputs.level }} level
+
+            After merging:
+            1. The release workflow will automatically:
+               - Create a GitHub release
+               - Publish to crates.io
+            2. Dev branch will be updated with the next development version
+
+      - name: Show version changes (dry run)
+        if: ${{ inputs.dry-run }}
+        run: |
+          cargo release ${{ inputs.level }} --no-publish --no-push --no-tag
