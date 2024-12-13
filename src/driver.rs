@@ -85,7 +85,7 @@ where
         self.write_register(REG_IO, &[0x00])?;
 
         // Initial MUX setting (AIN0 to AINCOM)
-        let mux = (0x00 << 4) | 0x08;
+        let mux = 0x08;
         self.write_register(REG_MUX, &[mux])?;
 
         // Perform self-calibration
@@ -647,8 +647,7 @@ where
         match self.read_data() {
             Ok(value) => {
                 // Return to standby after successful read
-                self.send_command(CMD_STANDBY)
-                    .map_err(|e| nb::Error::Other(e))?;
+                self.send_command(CMD_STANDBY).map_err(nb::Error::Other)?;
                 self.cs
                     .set_high()
                     .map_err(|e| nb::Error::Other(Ads1256Error::Gpio(e)))?;

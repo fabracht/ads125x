@@ -189,7 +189,7 @@ pub trait LendingIterator {
     type Item<'a>
     where
         Self: 'a;
-    fn next<'a>(&'a mut self) -> Option<Self::Item<'a>>;
+    fn next(&mut self) -> Option<Self::Item<'_>>;
 }
 
 impl<'a, SPI, CS, DRDY, PDWN, DELAY, SpiError, GpioError, const N: usize> LendingIterator
@@ -203,7 +203,7 @@ where
 {
     type Item<'b> = AdcConversion<'b, SPI, CS, DRDY, PDWN, DELAY, GpioError> where Self: 'b;
 
-    fn next<'b>(&'b mut self) -> Option<Self::Item<'b>> {
+    fn next(&mut self) -> Option<Self::Item<'_>> {
         if let Some(channels) = self.channels {
             let channel = channels[self.current_index];
             self.current_index = (self.current_index + 1) % N;

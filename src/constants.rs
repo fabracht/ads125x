@@ -85,11 +85,11 @@ impl DataRate {
     /// Returns the sample period in milliseconds
     pub fn period_us(&self) -> f64 {
         match self {
-            DataRate::Sps30000 => 1.0 / 30000.0 * 1000_000.0,
-            DataRate::Sps15000 => 1.0 / 15000.0 * 1000_000.0,
-            DataRate::Sps7500 => 1.0 / 7500.0 * 1000_000.0,
-            DataRate::Sps3750 => 1.0 / 3750.0 * 1000_000.0,
-            DataRate::Sps2000 => 1.0 / 2000.0 * 1000_000.0,
+            DataRate::Sps30000 => 1.0 / 30000.0 * 1_000_000.0,
+            DataRate::Sps15000 => 1.0 / 15000.0 * 1_000_000.0,
+            DataRate::Sps7500 => 1.0 / 7500.0 * 1_000_000.0,
+            DataRate::Sps3750 => 1.0 / 3750.0 * 1_000_000.0,
+            DataRate::Sps2000 => 1.0 / 2000.0 * 1_000_000.0,
             DataRate::Sps1000 => 1.0 * 1000.0,
             DataRate::Sps500 => 2.0 * 1000.0,
             DataRate::Sps100 => 10.0 * 1000.0,
