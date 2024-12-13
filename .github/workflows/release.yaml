@@ -44,6 +44,7 @@ jobs:
         uses: taiki-e/install-action@v2
         with:
           tool: cargo-release
+          version: '0.23.4'
 
       - name: Configure Git
         run: |
@@ -60,6 +61,7 @@ jobs:
         if: ${{ !inputs.dry-run }}
         run: |
           CURRENT_VERSION=$(cargo pkgid | cut -d# -f2)
+          echo "Current version: $CURRENT_VERSION"
           if [[ ! $CURRENT_VERSION =~ -dev$ ]]; then
             echo "Adding -dev suffix to current version"
             cargo release set-version "${CURRENT_VERSION}-dev"
