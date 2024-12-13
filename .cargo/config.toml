@@ -1,0 +1,18 @@
+[registry]
+default = "crates-io"
+
+[package]
+publish = true
+
+[dependencies]
+publish = true
+
+[release]
+sign-commit = true
+sign-tag = true
+push = true
+publish = true
+pre-release-commit-message = "chore(release): {{version}}"
+tag-message = "chore(release): {{version}}"
+tag-name = "v{{version}}"
+dev-version-ext = "dev"
