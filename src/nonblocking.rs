@@ -18,8 +18,8 @@ enum ConversionState {
 pub struct AdcConversion<'a, SPI, CS, DRDY, PDWN, DELAY, GpioError> {
     adc: &'a mut Ads1256<SPI, CS, DRDY, PDWN, DELAY>,
     state: ConversionState,
-    channel: Option<u8>,            // Current channel for cycling
-    differential: Option<(u8, u8)>, // For differential measurements
+    channel: Option<u8>,
+    differential: Option<(u8, u8)>,
     _gpio_error: core::marker::PhantomData<GpioError>,
 }
 
@@ -84,7 +84,6 @@ where
         match this.state {
             ConversionState::NotStarted => {
                 if let Some(channel) = this.channel {
-                    // Instead of using `?`, handle errors explicitly:
                     if let Err(e) = this.adc.cycle_channel(channel) {
                         return Poll::Ready(Err(e));
                     }
@@ -159,7 +158,6 @@ impl<'a, SPI, CS, DRDY, PDWN, DELAY, GpioError, const N: usize>
 }
 
 pub trait LendingIterator {
-    // GAT-enabled associated type
     type Item<'a>
     where
         Self: 'a;
@@ -176,7 +174,6 @@ where
     PDWN: OutputPin<Error = GpioError>,
     DELAY: DelayNs,
 {
-    // Define the lifetime-tied Item type
     type Item<'b> = AdcConversion<'b, SPI, CS, DRDY, PDWN, DELAY, GpioError>
     where
         Self: 'b;
