@@ -7,12 +7,13 @@ extern crate alloc;
 pub mod constants;
 pub mod driver;
 pub mod error;
-pub mod nb;
+// pub mod nb;
+pub mod nonblocking;
 
 pub use constants::{DataRate, Gain};
 pub use driver::Ads1256;
 pub use error::Ads1256Error;
-pub use nb::Ads1256NonBlocking;
+// pub use nb::Ads1256NonBlocking;
 
 #[cfg(test)]
 mod tests {
