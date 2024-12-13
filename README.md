@@ -36,7 +36,7 @@ ads125x = "0.1.0"
 
 ### Blocking API Example
 
-```rust
+```rust ignore
 use ads125x::{Ads1256, DataRate, Gain};
 
 fn main() -> Result<(), Error> {
@@ -63,7 +63,7 @@ fn main() -> Result<(), Error> {
 
 ### Non-Blocking API Example
 
-```rust
+```rust ignore
 use ads125x::nonblocking::Ads1256NonBlocking;
 
 async fn measure_voltage(mut adc: Ads1256NonBlocking<...>) -> Result<f64, Error> {
@@ -82,7 +82,7 @@ async fn measure_voltage(mut adc: Ads1256NonBlocking<...>) -> Result<f64, Error>
 
 ### Differential Measurements
 
-```rust
+```rust ignore
 // Measure differential between AIN0 (P) and AIN1 (N)
 adc.set_input_channel(0, 1)?;
 let diff_voltage = adc.read_voltage()?;
@@ -90,7 +90,7 @@ let diff_voltage = adc.read_voltage()?;
 
 ### Channel Cycling
 
-```rust
+```rust ignore
 // Cycle through channels quickly
 let channels = [0, 1, 2, 3];
 for &channel in &channels {
@@ -101,7 +101,7 @@ for &channel in &channels {
 
 ### Calibration
 
-```rust
+```rust ignore
 // Self calibration
 adc.self_calibrate()?;
 
@@ -112,7 +112,7 @@ adc.system_gain_calibrate()?;    // With known reference
 
 ### Register Access
 
-```rust
+```rust ignore
 // Direct register operations if needed
 adc.write_register(REG_MUX, &[0x01])?;
 let mut status = [0u8; 1];
@@ -121,7 +121,7 @@ adc.read_register(REG_STATUS, &mut status)?;
 
 ### Power Management
 
-```rust
+```rust ignore
 // Enter standby mode
 adc.enter_standby()?;
 
@@ -182,7 +182,7 @@ The non-blocking API provides:
 
 Example of continuous sampling:
 
-```rust
+```rust ignore
 let channels = [0, 1, 2, 3];
 let mut sampling = ContinuousSampling::with_channels(&mut adc, &channels);
 
