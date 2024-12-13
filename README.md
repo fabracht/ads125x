@@ -1,182 +1,266 @@
-# ADS1256 Rust Driver
+# ADS1256/ADS1255 Driver
 
-This crate provides a Rust driver for the ADS1256 (and ADS1255) Analog-to-Digital Converter (ADC) from Texas Instruments. The ADS1256 is a high-precision, 24-bit ADC with an integrated Programmable Gain Amplifier (PGA) and self-calibration functionality. It supports up to 30 kSPS, eight single-ended or four differential input channels, and has an SPI communication interface.
+A no_std driver for the ADS1255/ADS1256 24-bit analog-to-digital converter (ADC). This driver provides both blocking and non-blocking APIs for interfacing with Texas Instruments' ADS1255/ADS1256 high-precision ADCs.
 
-## Key Features
+## Features
 
-- **24-bit Analog-to-Digital Conversion**
+- Complete `no_std` support
+- Blocking and non-blocking (async) operation modes
+- Support for single-ended and differential measurements
+- Built-in calibration routines (self and system)
+- Configurable PGA gain settings (1-64)
+- Adjustable data rates (2.5 SPS to 30,000 SPS)
+- Flexible input multiplexer control
+- Buffer enable/disable support
+- Comprehensive error handling
+- Full register-level access when needed
 
-  - Supports eight single-ended or four differential input channels.
-  - Data output rates from 2.5 SPS to 30,000 SPS.
-  - Nonlinearity of ±0.0010% maximum.
+## Hardware Support
 
-- **SPI Interface**
+The driver is built on embedded-hal 1.0 traits and supports:
 
-  - Communicates with the ADS1256 via SPI, compatible with the `embedded-hal` SPI traits.
+- SPI interface up to 10MHz
+- GPIO pins for CS, DRDY, and PDWN control
+- System clock configurations from 1-10MHz (7.68MHz typical)
 
-- **Programmable Gain Amplifier (PGA)**
+## Development Setup
 
-  - Adjustable gain from 1x to 64x for different input ranges.
+This project uses Visual Studio Code Dev Containers for development. This ensures a consistent development environment for all contributors.
 
-- **Calibration**
+### Prerequisites
 
-  - Supports both **self-calibration** and **system calibration** (manual offset and gain calibration).
-  - Access to the Offset Calibration (`OFC`) and Full-Scale Calibration (`FSC`) registers for verification or manual calibration.
+1. [Docker](https://www.docker.com/get-started)
+2. [Visual Studio Code](https://code.visualstudio.com/)
+3. [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
 
-- **Synchronization**
-  - Synchronization can be controlled via the SYNC/PDWN pin or SPI commands, allowing precise control over conversion timing.
-- **GPIO Control**
-  - Manages the SYNC/PDWN, CS, and DRDY pins using the `embedded-hal` digital traits.
+### Getting Started with Dev Container
 
-## Usage
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/fabracht/ads125x.git
+   cd ads125x
+   ```
 
-### Example 1: Basic Setup and Reading Voltage
+2. Open the project in VS Code:
+   ```bash
+   code .
+   ```
 
-```rust
+3. When prompted, click "Reopen in Container" or press `F1` and select "Dev Containers: Reopen in Container"
+
+The container will be built automatically with all necessary dependencies installed. This includes:
+- Rust toolchain
+- Required system packages
+- GitHub CLI
+- Development tools and extensions
+
+### Building and Testing
+
+Once inside the dev container, you can use standard cargo commands:
+
+```bash
+cargo build
+cargo test
+cargo clippy
+```
+
+## Installation
+
+Add this to your `Cargo.toml`:
+
+```toml
+[dependencies]
+ads125x = "0.1.0"
+```
+
+## Basic Usage
+
+### Blocking API Example
+
+```rust ignore
 use ads125x::{Ads1256, DataRate, Gain};
-use esp_idf_hal::delay::Ets;
-use esp_idf_hal::gpio::{Gpio10, Gpio11, Gpio12};
-use esp_idf_hal::spi::{SpiDeviceDriver, SpiDriver};
 
-// Assuming you have a setup with the ESP32 and `esp-idf-hal`
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Set up peripherals (SPI, GPIO, etc.)
-    let peripherals = Peripherals::take().unwrap();
-    let spi = peripherals.spi2;
-    let sclk = peripherals.pins.gpio6;
-    let mosi = peripherals.pins.gpio7;
-    let miso = peripherals.pins.gpio8;
+fn main() -> Result<(), Error> {
+    // Create SPI and GPIO instances
+    let spi = // ...
+    let cs = // ...
+    let drdy = // ...
+    let pdwn = // ...
+    let delay = // ...
 
-    let spi_driver = SpiDriver::new(spi, sclk, mosi, miso, None, &SpiConfig::new().baudrate(1.MHz()))?;
-    let spi_device = SpiDeviceDriver::new(&spi_driver, None);
+    // Initialize ADC
+    let mut adc = Ads1256::new(spi, cs, drdy, pdwn, delay,
+        Gain::Gain1, DataRate::Sps1000);
+    adc.init(true)?; // true enables input buffer
 
-    let cs = peripherals.pins.gpio10.into_output()?;
-    let drdy = peripherals.pins.gpio11.into_input()?;
-    let pdwn = peripherals.pins.gpio12.into_output()?;
-
-    let delay = Ets;
-
-    // Create an ADS1256 instance
-    let mut adc = Ads1256::new(spi_device, cs, drdy, pdwn, delay, Gain::Gain1, DataRate::Sps1000);
-
-    // Initialize the ADC
-    adc.init()?;
-
-    // Set channel and read voltage
+    // Single-ended measurement on AIN0
     adc.set_channel(0)?;
     let voltage = adc.read_voltage()?;
-    println!("Measured voltage: {:.6} V", voltage);
+    println!("Voltage: {:.6} V", voltage);
 
     Ok(())
 }
 ```
 
-### Example 2: Performing Self-Calibration
+### Non-Blocking API Example
 
-```rust
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize the ADS1256 as shown in the first example...
+```rust ignore
+use ads125x::nonblocking::Ads1256NonBlocking;
 
-    // Perform self-calibration after initialization
-    adc.self_calibrate()?;
+async fn measure_voltage(mut adc: Ads1256NonBlocking<...>) -> Result<f64, Error> {
+    // Configure for AIN0
+    adc.set_channel(0).await?;
 
-    // Read and verify the calibration registers
-    let offset_cal = adc.read_offset_calibration()?;
-    let fullscale_cal = adc.read_fullscale_calibration()?;
+    // Start conversion and wait for result
+    let raw = adc.read_data().await?;
+    let voltage = adc.code_to_voltage(raw);
 
-    println!("Offset Calibration: {}", offset_cal);
-    println!("Full-Scale Calibration: {}", fullscale_cal);
-
-    Ok(())
+    Ok(voltage)
 }
 ```
 
-### Example 3: Synchronization
+## Advanced Usage
 
-The ADS1256 can be synchronized using either the SYNC/PDWN pin or SPI commands. This can be useful for aligning conversions with external events.
+### Differential Measurements
 
-#### Synchronizing with the SYNC/PDWN Pin
+```rust ignore
+// Measure differential between AIN0 (P) and AIN1 (N)
+adc.set_input_channel(0, 1)?;
+let diff_voltage = adc.read_voltage()?;
+```
 
-```rust
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize the ADS1256...
+### Channel Cycling
 
-    // Synchronize using the SYNC/PDWN pin
-    adc.synchronize_with_pin()?;
-
-    // Now perform a regular conversion
-    adc.set_channel(0)?;
-    let voltage = adc.read_voltage()?;
-    println!("Measured voltage: {:.6} V", voltage);
-
-    Ok(())
+```rust ignore
+// Cycle through channels quickly
+let channels = [0, 1, 2, 3];
+for &channel in &channels {
+    let value = adc.cycle_channel(channel)?;
+    println!("CH{}: {}", channel, value);
 }
 ```
 
-#### Synchronizing with SPI SYNC Command
+### Calibration
 
-```rust
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize the ADS1256...
+```rust ignore
+// Self calibration
+adc.self_calibrate()?;
 
-    // Synchronize using the SYNC and WAKEUP commands
-    adc.synchronize_with_commands()?;
+// System calibration
+adc.system_offset_calibrate()?;  // With inputs shorted
+adc.system_gain_calibrate()?;    // With known reference
+```
 
-    // Now perform a regular conversion
-    adc.set_channel(0)?;
-    let voltage = adc.read_voltage()?;
-    println!("Measured voltage: {:.6} V", voltage);
+### Register Access
 
-    Ok(())
+```rust ignore
+// Direct register operations if needed
+adc.write_register(REG_MUX, &[0x01])?;
+let mut status = [0u8; 1];
+adc.read_register(REG_STATUS, &mut status)?;
+```
+
+### Power Management
+
+```rust ignore
+// Enter standby mode
+adc.enter_standby()?;
+
+// Wake up
+adc.exit_standby()?;
+
+// Enter power-down
+adc.enter_power_down()?;
+```
+
+## Configuration Options
+
+### Gain Settings
+
+- Available gains: 1, 2, 4, 8, 16, 32, 64
+- Controlled via `Gain` enum
+- Affects input voltage range
+
+### Data Rates
+
+- Ranges from 2.5 SPS to 30,000 SPS
+- Tradeoff between speed and noise
+- Set via `DataRate` enum
+
+### Input Buffer
+
+- Can be enabled/disabled
+- Provides high input impedance when enabled
+- Some performance impact
+
+### Digital Interface
+
+- SPI mode 1 (CPOL=0, CPHA=1)
+- Maximum SCLK frequency: fCLKIN/4
+- CS, DRDY, PDWN control pins
+
+## Error Handling
+
+The driver uses a comprehensive error type that covers:
+
+- Communication errors (SPI, GPIO)
+- Configuration errors
+- Timing/state errors
+- Invalid parameter errors
+
+All operations return `Result<T, Ads1256Error<SpiError, GpioError>>`.
+
+## Advanced Topics
+
+### Non-Blocking Operation Details
+
+The non-blocking API provides:
+
+1. Future-based conversions
+2. Channel cycling
+3. Continuous sampling
+4. Async calibration
+
+Example of continuous sampling:
+
+```rust ignore
+let channels = [0, 1, 2, 3];
+let mut sampling = ContinuousSampling::with_channels(&mut adc, &channels);
+
+while let Some(conversion) = sampling.next() {
+    let value = conversion.await?;
+    // Process value...
 }
 ```
 
-## Calibration Features
+### Performance Optimization
 
-This driver supports both **self-calibration** and **system calibration**:
+1. Use appropriate data rate for application
+2. Consider buffer impact on measurements
+3. Optimize channel cycling sequence
+4. Use non-blocking API for better system utilization
 
-- **Self-Calibration**:
-  - Automatically calibrates both offset and gain values.
-  - Can be performed after initialization or when changing critical configurations like the data rate or PGA setting.
-- **System Calibration**:
-  - The user must provide specific input signals (e.g., zero differential for offset, full-scale for gain) to perform system calibration.
-  - Use the `system_offset_calibrate()` and `system_gain_calibrate()` methods to perform system calibration.
+### Noise Considerations
 
-```rust
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Initialize the ADS1256...
+1. Use lower data rates for better noise rejection
+2. Enable input buffer for high-impedance sources
+3. Consider PGA settings impact on noise
+4. External filtering may be needed
 
-    // Perform system offset calibration (apply zero differential input signal)
-    adc.system_offset_calibrate()?;
+## Contributing
 
-    // Perform system gain calibration (apply full-scale input signal)
-    adc.system_gain_calibrate()?;
+Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
-    Ok(())
-}
-```
+## License
 
-## Pinout and Configurations
+Licensed under either:
 
-Ensure that your SPI and GPIO pins are properly configured based on your hardware. For ESP32, for example, the following typical pin configuration might be used:
+- MIT license or
+- Apache License, Version 2.0
 
-- **SPI Pins**:
-  - SCLK (Clock)
-  - MOSI (Master Out Slave In)
-  - MISO (Master In Slave Out)
-- **GPIO Pins**:
-  - CS (Chip Select)
-  - DRDY (Data Ready)
-  - PDWN (Power Down / Sync)
+at your option.
 
-## Supported Platforms
+## Resources
 
-This driver is designed to work with any platform that implements the [`embedded-hal`](https://github.com/rust-embedded/embedded-hal) traits for SPI, GPIO, and delay functionalities. It has been tested with:
-
-- **ESP32-S3** using the `esp-idf-hal` crate
-
-## Next Steps
-
-- Implement and verify system calibration with real-world inputs.
-- Perform detailed testing with various data rates and input configurations.
-- Add more examples, including differential input mode and GPIO control.
+- [ADS1256 Datasheet](https://www.ti.com/lit/ds/symlink/ads1256.pdf)
+- [Application Notes](https://www.ti.com/product/ADS1256#tech-docs)
