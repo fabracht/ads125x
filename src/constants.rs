@@ -33,6 +33,9 @@ pub const T6_DELAY: u64 = 7; // t6 delay (50 * CLKIN period)
 pub const T11_DELAY: u64 = 100; // t11 delay
 pub const T16_DELAY: u64 = 5; // t16 delay (4 clock cycles)
 
+/// Default Voltage Reference
+pub const DEFAULT_VREF: f64 = 2.5;
+
 /// Gain settings for the ADS1256 programmable gain amplifier (PGA)
 #[derive(Clone, Copy, Debug)]
 pub enum Gain {

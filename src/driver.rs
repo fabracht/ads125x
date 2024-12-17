@@ -11,6 +11,7 @@ use embedded_hal::{
 };
 
 /// ADS1256 driver
+#[derive(Debug)]
 pub struct Ads1256<SPI, CS, DRDY, PDWN, DELAY> {
     spi: SPI,
     cs: CS,
@@ -19,6 +20,7 @@ pub struct Ads1256<SPI, CS, DRDY, PDWN, DELAY> {
     pub delay: DELAY,
     gain: Gain,
     data_rate: DataRate,
+    vref: f64,
 }
 
 impl<SPI, CS, DRDY, PDWN, DELAY, SpiError, GpioError> Ads1256<SPI, CS, DRDY, PDWN, DELAY>
@@ -47,6 +49,45 @@ where
             delay,
             gain,
             data_rate,
+            vref: DEFAULT_VREF,
+        }
+    }
+
+    /// Get the current reference voltage
+    pub fn vref(&self) -> f64 {
+        self.vref
+    }
+
+    /// Get the current gain
+    pub fn gain(&self) -> Gain {
+        self.gain
+    }
+
+    /// Get the current gain value
+    pub fn gain_value(&self) -> f64 {
+        self.gain.value()
+    }
+
+    /// Creates a new ADS1256 driver instance with custom reference voltage
+    pub fn new_with_vref(
+        spi: SPI,
+        cs: CS,
+        drdy: DRDY,
+        pdwn: PDWN,
+        delay: DELAY,
+        gain: Gain,
+        data_rate: DataRate,
+        vref: f64,
+    ) -> Self {
+        Ads1256 {
+            spi,
+            cs,
+            drdy,
+            pdwn,
+            delay,
+            gain,
+            data_rate,
+            vref,
         }
     }
 
@@ -114,7 +155,6 @@ where
         let count = (data.len() - 1) as u8;
 
         self.cs.set_low().map_err(Ads1256Error::Gpio)?;
-        self.wait_for_drdy()?;
         self.spi
             .write(&[command, count])
             .map_err(Ads1256Error::Spi)?;
@@ -134,7 +174,6 @@ where
         let count = (buffer.len() - 1) as u8;
 
         self.cs.set_low().map_err(Ads1256Error::Gpio)?;
-        self.wait_for_drdy()?;
         self.spi
             .write(&[command, count])
             .map_err(Ads1256Error::Spi)?;
@@ -144,7 +183,8 @@ where
         Ok(())
     }
 
-    fn wait_for_drdy(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
+    /// Blocking wait for DRDY to go low
+    pub fn wait_for_drdy(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
         let timeout = 50000;
         for _ in 0..timeout {
             if self.drdy.is_low().map_err(Ads1256Error::Gpio)? {
@@ -156,6 +196,7 @@ where
         Err(Ads1256Error::Timeout)
     }
 
+    /// Blocking wait for DRDY to go high
     fn wait_for_drdy_high(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
         let mut attempts = 0;
         while self.drdy.is_low().map_err(Ads1256Error::Gpio)? {
@@ -171,8 +212,6 @@ where
 
     /// Reads raw data from the ADC
     pub fn read_data(&mut self) -> Result<i32, Ads1256Error<SpiError, GpioError>> {
-        // self.wait_for_drdy()?;
-
         self.cs.set_low().map_err(Ads1256Error::Gpio)?;
         self.spi.write(&[CMD_RDATA]).map_err(Ads1256Error::Spi)?;
 
@@ -210,13 +249,11 @@ where
 
     /// Converts raw ADC code to voltage
     pub fn code_to_voltage(&self, code: i32) -> f64 {
-        // Assuming VREF is 2.5V and PGA gain is 1
-        let v_ref = 2.5;
         let gain = self.gain.value();
         let max_code = 8388607.0; // Maximum positive ADC value (2^23 - 1)
 
         // Convert code to voltage
-        (code as f64 * (2.0 * v_ref)) / (gain * max_code)
+        (code as f64 * (2.0 * self.vref)) / (gain * max_code)
     }
 
     pub fn set_buffer_enabled(
@@ -246,37 +283,19 @@ where
 
     /// Sets the input multiplexer for single-ended input
     pub fn set_channel(&mut self, channel: u8) -> Result<(), Ads1256Error<SpiError, GpioError>> {
-        // Check if channel number is within valid range
         if channel > 7 {
             return Err(Ads1256Error::InvalidInputChannel);
         }
 
-        // Set AINP to the desired channel (AIN0 to AIN7)
         let positive = channel & 0x07;
-
-        // Set AINN to AINCOM (assuming AINCOM is connected via GND pins)
-        let negative = 0x08; // Code for AINCOM
-
-        // Construct MUX register value
+        let negative = 0x08; // AINCOM
         let mux = (positive << 4) | negative;
 
-        log::debug!(
-            "Setting MUX register to: 0x{:02X} (AINP = AIN{}, AINN = AINCOM)",
-            mux,
-            positive
-        );
-
-        // Write to MUX register
         self.write_register(REG_MUX, &[mux])?;
 
-        // Synchronize conversions
         self.send_command(CMD_SYNC)?;
-        self.delay.delay_us(100); // Adjust based on tCLKIN
+        self.delay.delay_us(100);
         self.send_command(CMD_WAKEUP)?;
-
-        // Wait for DRDY to go high and then low (new data ready)
-        self.wait_for_drdy_high()?; // Wait for DRDY to go high
-        self.wait_for_drdy()?; // Wait for DRDY to go low
 
         Ok(())
     }
@@ -287,36 +306,17 @@ where
         positive: u8,
         negative: u8,
     ) -> Result<(), Ads1256Error<SpiError, GpioError>> {
-        let mut mux = 0x00;
-        self.wait_for_drdy()?;
-        // Validate and set positive input
-        if positive == 0x08 {
-            // AINCOM is not available
-            return Err(Ads1256Error::InvalidInputChannel);
-        } else if positive <= 0x07 {
-            mux |= (positive & 0x07) << 4;
-        } else {
+        if positive > 7 || negative > 7 {
             return Err(Ads1256Error::InvalidInputChannel);
         }
 
-        // Validate and set negative input
-        if negative == 0x08 {
-            // AINCOM is not available
-            return Err(Ads1256Error::InvalidInputChannel);
-        } else if negative <= 0x07 {
-            mux |= negative & 0x07;
-        } else {
-            return Err(Ads1256Error::InvalidInputChannel);
-        }
-
-        // Write MUX register and synchronize
+        let mux = ((positive & 0x07) << 4) | (negative & 0x07);
         self.write_register(REG_MUX, &[mux])?;
+
         self.send_command(CMD_SYNC)?;
-        self.delay.delay_us(100); // Adjust based on tCLKIN
+        self.delay.delay_us(100);
         self.send_command(CMD_WAKEUP)?;
 
-        self.wait_for_drdy_high()?; // Wait for DRDY to go high
-        self.wait_for_drdy()?; // Wait for DRDY to go low
         Ok(())
     }
 
@@ -326,7 +326,6 @@ where
         self.write_register(REG_ADCON, &[adcon])?;
         self.gain = gain;
 
-        // Perform self-calibration
         self.send_command(CMD_SELFCAL)?;
         self.wait_for_drdy()?;
         Ok(())
@@ -340,7 +339,6 @@ where
         self.write_register(REG_DRATE, &[data_rate as u8])?;
         self.data_rate = data_rate;
 
-        // Perform self-calibration
         self.send_command(CMD_SELFCAL)?;
         self.wait_for_drdy()?;
         Ok(())
@@ -474,8 +472,8 @@ where
         self.pdwn.set_low().map_err(Ads1256Error::Gpio)?;
 
         // Wait for 20 DRDY periods (depends on the data rate)
-        let drdy_period_ms = self.data_rate.period_us();
-        self.delay.delay_ms((20.0 * drdy_period_ms) as u32);
+        let drdy_period_us = self.data_rate.period_us();
+        self.delay.delay_ms((20.0 * drdy_period_us / 1000.0) as u32);
 
         Ok(())
     }
@@ -487,173 +485,57 @@ where
     }
 
     /// Cycles to a new channel using the optimized sequence from the datasheet.
-    /// This method follows the recommended sequence:
-    /// 1. Update MUX register when DRDY is low
-    /// 2. Issue SYNC and WAKEUP commands
-    /// 3. Return data from previous conversion
-    ///
-    /// Returns the data from the previous channel's conversion.
     pub fn cycle_channel(&mut self, channel: u8) -> Result<i32, Ads1256Error<SpiError, GpioError>> {
-        // Wait for DRDY to ensure we can change the MUX
+        // Wait for DRDY to go low before changing MUX
         self.wait_for_drdy()?;
 
-        // Set the new channel in MUX register
-        // Check if channel number is within valid range
-        if channel > 7 {
-            return Err(Ads1256Error::InvalidInputChannel);
-        }
-
-        // Set AINP to the desired channel (AIN0 to AIN7)
+        // Set the new channel
         let positive = channel & 0x07;
-        // Set AINN to AINCOM
         let negative = 0x08;
-        // Construct MUX register value
         let mux = (positive << 4) | negative;
-
-        log::debug!(
-            "Setting MUX register to: 0x{:02X} (AINP = AIN{}, AINN = AINCOM)",
-            mux,
-            positive
-        );
-
-        // Write to MUX register
         self.write_register(REG_MUX, &[mux])?;
 
-        // Restart conversion process with SYNC and WAKEUP
+        // Sync the ADC
         self.send_command(CMD_SYNC)?;
-        self.delay.delay_us(100); // t11 delay between commands
+        self.delay.delay_us(100);
         self.send_command(CMD_WAKEUP)?;
 
-        // Wait for DRDY to go high and then low (new data ready)
-        self.wait_for_drdy_high()?; // Wait for DRDY to go high
-        self.wait_for_drdy()?; // Wait for DRDY to go low
+        // Wait for DRDY cycle (high then low)
+        self.wait_for_drdy_high()?;
+        self.wait_for_drdy()?;
 
-        // Read and return the data from the previous conversion
+        // Read the conversion result
         self.read_data()
     }
 
     /// Cycles to a new differential input channel pair using the optimized sequence.
-    /// This method allows selecting both positive and negative inputs for differential measurements.
     pub fn cycle_differential_channel(
         &mut self,
         positive: u8,
         negative: u8,
     ) -> Result<i32, Ads1256Error<SpiError, GpioError>> {
-        // Wait for DRDY to ensure we can change the MUX
+        // Wait for DRDY to go low before changing MUX
         self.wait_for_drdy()?;
 
-        // Validate inputs
+        // Validate channels
         if positive > 7 || negative > 7 {
             return Err(Ads1256Error::InvalidInputChannel);
         }
 
-        // Construct MUX register value
+        // Set the new channel pair
         let mux = (positive << 4) | negative;
-
-        log::debug!(
-            "Setting MUX register to: 0x{:02X} (AINP = AIN{}, AINN = AIN{})",
-            mux,
-            positive,
-            negative
-        );
-
-        // Write to MUX register
         self.write_register(REG_MUX, &[mux])?;
 
-        // Restart conversion process with SYNC and WAKEUP
+        // Sync the ADC
         self.send_command(CMD_SYNC)?;
-        self.delay.delay_us(100); // t11 delay between commands
+        self.delay.delay_us(100);
         self.send_command(CMD_WAKEUP)?;
 
-        // Wait for DRDY to go high and then low (new data ready)
-        self.wait_for_drdy_high()?; // Wait for DRDY to go high
-        self.wait_for_drdy()?; // Wait for DRDY to go low
-
-        // Read and return the data from the previous conversion
-        self.read_data()
-    }
-
-    /// Performs a single conversion in one-shot mode.
-    ///
-    /// This method:
-    /// 1. Enters standby mode
-    /// 2. Issues WAKEUP to start conversion
-    /// 3. Waits for modulator power-up and settling
-    /// 4. Reads data
-    /// 5. Returns to standby mode
-    ///
-    /// Returns the conversion result.
-    pub fn read_one_shot(&mut self) -> Result<i32, Ads1256Error<SpiError, GpioError>> {
-        // Enter standby mode
-        self.send_command(CMD_STANDBY)?;
-
-        // IMPORTANT: No SCLK activity while CS is low after STANDBY
-        // We ensure this by keeping CS high between commands
-        self.cs.set_high().map_err(Ads1256Error::Gpio)?;
-
-        // Start conversion by waking up
-        self.send_command(CMD_WAKEUP)?;
-
-        // Wait for modulator power-up (64 x 4 x τCLKIN)
-        // At 7.68MHz clock, this is approximately 33.3μs
-        self.delay.delay_us(34);
-
-        // Wait for settling and data to be ready
+        // Wait for DRDY cycle (high then low)
+        self.wait_for_drdy_high()?;
         self.wait_for_drdy()?;
 
         // Read the conversion result
-        let result = self.read_data()?;
-
-        // Return to standby mode
-        self.send_command(CMD_STANDBY)?;
-        self.cs.set_high().map_err(Ads1256Error::Gpio)?;
-
-        Ok(result)
-    }
-
-    /// Prepares the ADC for one-shot mode operation.
-    /// This is optional but can be used to ensure the ADC is in a known state
-    /// before starting one-shot conversions.
-    pub fn prepare_one_shot(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
-        // Stop any continuous read mode if active
-        self.send_command(CMD_SDATAC)?;
-
-        // Ensure we start in standby
-        self.send_command(CMD_STANDBY)?;
-        self.cs.set_high().map_err(Ads1256Error::Gpio)?;
-
-        Ok(())
-    }
-
-    /// Non-blocking version that starts a one-shot conversion
-    pub fn start_one_shot(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
-        // Exit standby to start conversion
-        self.send_command(CMD_WAKEUP)?;
-
-        // Wait for modulator power-up
-        self.delay.delay_us(34);
-
-        Ok(())
-    }
-
-    /// Checks if one-shot conversion is complete and reads the result if ready
-    pub fn read_one_shot_nb(&mut self) -> nb::Result<i32, Ads1256Error<SpiError, GpioError>> {
-        // Check if DRDY is low indicating data is ready
-        if self.drdy.is_high().map_err(Ads1256Error::Gpio)? {
-            return Err(nb::Error::WouldBlock);
-        }
-
-        // Read the conversion result
-        match self.read_data() {
-            Ok(value) => {
-                // Return to standby after successful read
-                self.send_command(CMD_STANDBY).map_err(nb::Error::Other)?;
-                self.cs
-                    .set_high()
-                    .map_err(|e| nb::Error::Other(Ads1256Error::Gpio(e)))?;
-                Ok(value)
-            }
-            Err(e) => Err(nb::Error::Other(e)),
-        }
+        self.read_data()
     }
 }
