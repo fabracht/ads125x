@@ -1,3 +1,4 @@
+// src/constants.rs
 /// ADS1256 Commands
 pub const CMD_WAKEUP: u8 = 0x00;
 pub const CMD_RDATA: u8 = 0x01;
@@ -29,9 +30,9 @@ pub const REG_FSC2: u8 = 0x0A;
 
 /// Default timing values (in microseconds) based on 7.68MHz clock
 pub const T_CLKIN: f64 = 1.0 / 7.68; // Clock period in microseconds
-pub const T6_DELAY: u64 = 7; // t6 delay (50 * CLKIN period)
-pub const T11_DELAY: u64 = 100; // t11 delay
-pub const T16_DELAY: u64 = 5; // t16 delay (4 clock cycles)
+pub const T6_DELAY: u32 = 7; // t6 delay (50 * CLKIN period)
+pub const T11_DELAY: u32 = 100; // t11 delay
+pub const T16_DELAY: u32 = 5; // t16 delay (4 clock cycles)
 
 /// Default Voltage Reference
 pub const DEFAULT_VREF: f64 = 2.5;
