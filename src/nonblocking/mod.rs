@@ -1,4 +1,5 @@
 // src/nonblocking/mod.rs
+pub mod calibration;
 pub mod channels;
 pub mod modes;
 pub mod operations;
