@@ -3,6 +3,7 @@ pub mod calibration;
 pub mod channels;
 pub mod modes;
 pub mod operations;
+pub mod power;
 
 use crate::constants::*;
 use embedded_hal::digital::{InputPin, OutputPin};
