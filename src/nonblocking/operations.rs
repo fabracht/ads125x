@@ -99,7 +99,10 @@ where
         buffer_enabled: bool,
     ) -> Result<(), Ads1256Error<SpiError, GpioError>> {
         // Power up sequence
-        self.pdwn.set_high().map_err(Ads1256Error::Gpio)?;
+        self.pdwn
+            .wait_for_high()
+            .await
+            .map_err(Ads1256Error::Gpio)?;
         self.delay.delay_ms(10).await;
 
         // Reset the device
