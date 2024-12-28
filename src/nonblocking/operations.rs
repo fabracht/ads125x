@@ -103,20 +103,21 @@ where
             .wait_for_high()
             .await
             .map_err(Ads1256Error::Gpio)?;
+        log::info!("Powering up the device");
         self.delay.delay_ms(10).await;
 
         // Reset the device
         self.send_command(CMD_RESET).await?;
-
+        log::info!("Resetting the device");
         // Wait for DRDY in non-blocking way
         self.drdy.wait_for_low().await.map_err(Ads1256Error::Gpio)?;
-
+        log::info!("Waiting for DRDY to go low");
         // Stop continuous read mode if active
         self.send_command(CMD_SDATAC).await?;
-
+        log::info!("Stopping continuous read mode");
         // Wait for DRDY
         self.drdy.wait_for_low().await.map_err(Ads1256Error::Gpio)?;
-
+        log::info!("Waiting for DRDY to go low");
         // Configure STATUS register with BUFEN setting
         let mut status = [0u8; 1];
         self.read_register(REG_STATUS, &mut status).await?;
@@ -126,28 +127,28 @@ where
             status[0] &= !0x02;
         }
         self.write_register(REG_STATUS, &status).await?;
-
+        log::info!("Configuring STATUS register with BUFEN setting");
         // Configure ADCON register (PGA setting)
         let adcon = self.gain as u8;
         self.write_register(REG_ADCON, &[adcon]).await?;
-
+        log::info!("Configuring ADCON register with PGA setting");
         // Set data rate
         self.write_register(REG_DRATE, &[self.data_rate as u8])
             .await?;
-
+        log::info!("Setting data rate");
         // Configure IO register (all GPIOs as outputs)
         self.write_register(REG_IO, &[0x00]).await?;
-
+        log::info!("Configuring IO register with all GPIOs as outputs");
         // Initial MUX setting (AIN0 to AINCOM)
         let mux = 0x08;
         self.write_register(REG_MUX, &[mux]).await?;
-
+        log::info!("Initial MUX setting (AIN0 to AINCOM)");
         // Perform self-calibration
         self.send_command(CMD_SELFCAL).await?;
-
+        log::info!("Performing self-calibration");
         // Wait for DRDY
         self.drdy.wait_for_low().await.map_err(Ads1256Error::Gpio)?;
-
+        log::info!("Waiting for DRDY to go low");
         Ok(())
     }
 
