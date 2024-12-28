@@ -103,7 +103,7 @@ where
         self.pdwn.set_high().map_err(Ads1256Error::Gpio)?;
         log::info!("Powering up the device");
         self.delay.delay_ms(10).await;
-
+        log::info!("Powered up the device");
         // Reset the device
         self.send_command(CMD_RESET).await?;
         log::info!("Resetting the device");
