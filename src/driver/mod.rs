@@ -4,9 +4,6 @@ pub mod channels;
 pub mod modes;
 pub mod operations;
 pub mod power;
-pub mod types;
-
-pub use types::*;
 
 use crate::constants::*;
 
@@ -15,6 +12,7 @@ use embedded_hal::{
     digital::{InputPin, OutputPin},
     spi::SpiDevice,
 };
+use modes::OperatingMode;
 
 /// ADS1256 driver
 #[derive(Debug)]

@@ -1,20 +1,14 @@
 // src/nonblocking/channels.rs
-
-// src/nonblocking/channels.rs
-use crate::{
-    constants::*,
-    error::Ads1256Error,
-    nonblocking::{utils::yield_now, Ads1256NonBlocking},
-};
+use crate::{constants::*, error::Ads1256Error, nonblocking::Ads1256NonBlocking};
 use embedded_hal::digital::{InputPin, OutputPin};
-use embedded_hal_async::{delay::DelayNs, spi::SpiDevice};
+use embedded_hal_async::{delay::DelayNs, digital::Wait, spi::SpiDevice};
 
 impl<SPI, CS, DRDY, PDWN, DELAY, SpiError, GpioError> Ads1256NonBlocking<SPI, CS, DRDY, PDWN, DELAY>
 where
     SPI: SpiDevice<Error = SpiError>,
-    CS: OutputPin<Error = GpioError>,
-    DRDY: InputPin<Error = GpioError>,
-    PDWN: OutputPin<Error = GpioError>,
+    CS: Wait + OutputPin<Error = GpioError>,
+    DRDY: Wait + InputPin<Error = GpioError>,
+    PDWN: Wait + OutputPin<Error = GpioError>,
     DELAY: DelayNs,
 {
     /// Change channel operation
@@ -27,9 +21,7 @@ where
         }
 
         // Wait for DRDY in non-blocking way
-        while !self.drdy.is_low().map_err(Ads1256Error::Gpio)? {
-            yield_now().await;
-        }
+        self.wait_for_drdy().await?;
 
         // Update MUX register
         let positive = channel & 0x07;
@@ -56,9 +48,7 @@ where
         }
 
         // Wait for DRDY
-        while !self.drdy.is_low().map_err(Ads1256Error::Gpio)? {
-            yield_now().await;
-        }
+        self.wait_for_drdy().await?;
 
         // Update MUX register for next reading
         let positive = channel & 0x07;
@@ -107,9 +97,9 @@ pub struct ChannelSequencer<'a, SPI, CS, DRDY, PDWN, DELAY> {
 impl<'a, SPI, CS, DRDY, PDWN, DELAY> ChannelSequencer<'a, SPI, CS, DRDY, PDWN, DELAY>
 where
     SPI: SpiDevice,
-    CS: OutputPin,
-    DRDY: InputPin,
-    PDWN: OutputPin,
+    CS: Wait + OutputPin,
+    DRDY: Wait + InputPin,
+    PDWN: Wait + OutputPin,
     DELAY: DelayNs,
 {
     fn new(

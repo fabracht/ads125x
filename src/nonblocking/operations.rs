@@ -2,17 +2,15 @@
 
 use crate::{constants::*, error::Ads1256Error};
 use embedded_hal::digital::{InputPin, OutputPin};
-use embedded_hal_async::{delay::DelayNs, spi::SpiDevice};
-
-use super::utils::yield_now;
+use embedded_hal_async::{delay::DelayNs, digital::Wait, spi::SpiDevice};
 
 impl<SPI, CS, DRDY, PDWN, DELAY, SpiError, GpioError>
     crate::nonblocking::Ads1256NonBlocking<SPI, CS, DRDY, PDWN, DELAY>
 where
     SPI: SpiDevice<Error = SpiError>,
-    CS: OutputPin<Error = GpioError>,
-    DRDY: InputPin<Error = GpioError>,
-    PDWN: OutputPin<Error = GpioError>,
+    CS: Wait + OutputPin<Error = GpioError>,
+    DRDY: Wait + InputPin<Error = GpioError>,
+    PDWN: Wait + OutputPin<Error = GpioError>,
     DELAY: DelayNs,
 {
     /// Sends a command to the ADS1256
@@ -20,12 +18,12 @@ where
         &mut self,
         command: u8,
     ) -> Result<(), Ads1256Error<SpiError, GpioError>> {
-        self.cs.set_low().map_err(Ads1256Error::Gpio)?;
+        self.cs.wait_for_low().await.map_err(Ads1256Error::Gpio)?;
         self.spi
             .write(&[command])
             .await
             .map_err(Ads1256Error::Spi)?;
-        self.cs.set_high().map_err(Ads1256Error::Gpio)?;
+        self.cs.wait_for_high().await.map_err(Ads1256Error::Gpio)?;
         Ok(())
     }
 
@@ -38,14 +36,14 @@ where
         let command = CMD_WREG | (reg & 0x0F);
         let count = (data.len() - 1) as u8;
 
-        self.cs.set_low().map_err(Ads1256Error::Gpio)?;
+        self.cs.wait_for_low().await.map_err(Ads1256Error::Gpio)?;
         self.spi
             .write(&[command, count])
             .await
             .map_err(Ads1256Error::Spi)?;
         self.delay.delay_us(5).await;
         self.spi.write(data).await.map_err(Ads1256Error::Spi)?;
-        self.cs.set_high().map_err(Ads1256Error::Gpio)?;
+        self.cs.wait_for_high().await.map_err(Ads1256Error::Gpio)?;
         Ok(())
     }
 
@@ -58,20 +56,20 @@ where
         let command = CMD_RREG | (reg & 0x0F);
         let count = (buffer.len() - 1) as u8;
 
-        self.cs.set_low().map_err(Ads1256Error::Gpio)?;
+        self.cs.wait_for_low().await.map_err(Ads1256Error::Gpio)?;
         self.spi
             .write(&[command, count])
             .await
             .map_err(Ads1256Error::Spi)?;
         self.delay.delay_us(5).await;
         self.spi.read(buffer).await.map_err(Ads1256Error::Spi)?;
-        self.cs.set_high().map_err(Ads1256Error::Gpio)?;
+        self.cs.wait_for_high().await.map_err(Ads1256Error::Gpio)?;
         Ok(())
     }
 
     /// Reads raw data from the ADC
     pub(crate) async fn read_data(&mut self) -> Result<i32, Ads1256Error<SpiError, GpioError>> {
-        self.cs.set_low().map_err(Ads1256Error::Gpio)?;
+        self.cs.wait_for_low().await.map_err(Ads1256Error::Gpio)?;
         self.spi
             .write(&[CMD_RDATA])
             .await
@@ -83,7 +81,7 @@ where
             .read(&mut buffer)
             .await
             .map_err(Ads1256Error::Spi)?;
-        self.cs.set_high().map_err(Ads1256Error::Gpio)?;
+        self.cs.wait_for_high().await.map_err(Ads1256Error::Gpio)?;
 
         let raw_value = ((buffer[0] as i32) << 16) | ((buffer[1] as i32) << 8) | (buffer[2] as i32);
         let value = if raw_value & 0x800000 != 0 {
@@ -108,17 +106,13 @@ where
         self.send_command(CMD_RESET).await?;
 
         // Wait for DRDY in non-blocking way
-        while !self.drdy.is_low().map_err(Ads1256Error::Gpio)? {
-            yield_now().await;
-        }
+        self.wait_for_drdy().await?;
 
         // Stop continuous read mode if active
         self.send_command(CMD_SDATAC).await?;
 
         // Wait for DRDY
-        while !self.drdy.is_low().map_err(Ads1256Error::Gpio)? {
-            yield_now().await;
-        }
+        self.wait_for_drdy().await?;
 
         // Configure STATUS register with BUFEN setting
         let mut status = [0u8; 1];
@@ -149,10 +143,19 @@ where
         self.send_command(CMD_SELFCAL).await?;
 
         // Wait for DRDY
-        while !self.drdy.is_low().map_err(Ads1256Error::Gpio)? {
-            yield_now().await;
-        }
+        self.wait_for_drdy().await?;
 
         Ok(())
+    }
+
+    pub async fn wait_for_drdy(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
+        self.drdy.wait_for_low().await.map_err(Ads1256Error::Gpio)
+    }
+
+    /// Converts raw ADC code to voltage
+    pub fn code_to_voltage(&self, code: i32) -> f64 {
+        let gain = self.gain.value();
+        let max_code = 8388607.0; // Maximum positive ADC value (2^23 - 1)
+        (code as f64 * (2.0 * DEFAULT_VREF)) / (gain * max_code)
     }
 }

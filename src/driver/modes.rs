@@ -1,5 +1,4 @@
 // src/driver/modes.rs
-use super::types::OperatingMode;
 use super::Ads1256;
 use crate::constants::*;
 use crate::error::Ads1256Error;
@@ -8,6 +7,15 @@ use embedded_hal::{
     digital::{InputPin, OutputPin},
     spi::SpiDevice,
 };
+
+/// Operating mode of the ADC
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum OperatingMode {
+    /// One-shot mode using STANDBY/WAKEUP for power efficiency
+    OneShot,
+    /// Continuous conversion mode
+    Continuous,
+}
 
 impl<SPI, CS, DRDY, PDWN, DELAY, SpiError, GpioError> Ads1256<SPI, CS, DRDY, PDWN, DELAY>
 where
