@@ -37,6 +37,12 @@ pub const T16_DELAY: u32 = 5; // t16 delay (4 clock cycles)
 /// Default Voltage Reference
 pub const DEFAULT_VREF: f64 = 2.5;
 
+/// Number of Channels
+#[cfg(not(feature = "ads1255"))]
+pub const MAX_CHANNELS: usize = 8;
+#[cfg(feature = "ads1255")]
+pub const MAX_CHANNELS: usize = 2;
+
 /// Gain settings for the ADS1256 programmable gain amplifier (PGA)
 #[derive(Clone, Copy, Debug)]
 pub enum Gain {

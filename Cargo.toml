@@ -12,6 +12,7 @@ categories = ["embedded", "hardware-support", "no-std"]
 default = ["std"]
 std = []
 defmt = ["dep:defmt"]
+ads1255 = []
 
 [dependencies]
 embedded-hal = "1.0.0"
