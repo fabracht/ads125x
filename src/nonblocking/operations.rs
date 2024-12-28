@@ -100,10 +100,7 @@ where
     ) -> Result<(), Ads1256Error<SpiError, GpioError>> {
         log::info!("Initializing the device");
         // Power up sequence
-        self.pdwn
-            .wait_for_high()
-            .await
-            .map_err(Ads1256Error::Gpio)?;
+        self.pdwn.set_high().map_err(Ads1256Error::Gpio)?;
         log::info!("Powering up the device");
         self.delay.delay_ms(10).await;
 
