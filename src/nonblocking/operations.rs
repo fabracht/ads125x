@@ -106,13 +106,13 @@ where
         self.send_command(CMD_RESET).await?;
 
         // Wait for DRDY in non-blocking way
-        self.wait_for_drdy().await?;
+        self.drdy.wait_for_low().await.map_err(Ads1256Error::Gpio)?;
 
         // Stop continuous read mode if active
         self.send_command(CMD_SDATAC).await?;
 
         // Wait for DRDY
-        self.wait_for_drdy().await?;
+        self.drdy.wait_for_low().await.map_err(Ads1256Error::Gpio)?;
 
         // Configure STATUS register with BUFEN setting
         let mut status = [0u8; 1];
@@ -143,13 +143,9 @@ where
         self.send_command(CMD_SELFCAL).await?;
 
         // Wait for DRDY
-        self.wait_for_drdy().await?;
+        self.drdy.wait_for_low().await.map_err(Ads1256Error::Gpio)?;
 
         Ok(())
-    }
-
-    pub async fn wait_for_drdy(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
-        self.drdy.wait_for_low().await.map_err(Ads1256Error::Gpio)
     }
 
     /// Converts raw ADC code to voltage

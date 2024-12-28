@@ -30,11 +30,11 @@ where
         self.delay.delay_ms(50).await; // Increased delay after reset command
 
         // Wait for DRDY to go low
-        self.wait_for_drdy().await?;
+        self.drdy.wait_for_low().await.map_err(Ads1256Error::Gpio)?;
 
         // Perform self-calibration
         self.send_command(CMD_SELFCAL).await?;
-        self.wait_for_drdy().await?;
+        self.drdy.wait_for_low().await.map_err(Ads1256Error::Gpio)?;
 
         Ok(())
     }
@@ -74,7 +74,7 @@ where
             .map_err(Ads1256Error::Gpio)?;
 
         // Wait for DRDY to indicate new conversion started
-        self.wait_for_drdy().await?;
+        self.drdy.wait_for_low().await.map_err(Ads1256Error::Gpio)?;
 
         Ok(())
     }

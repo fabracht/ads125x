@@ -21,7 +21,7 @@ where
         }
 
         // Wait for DRDY in non-blocking way
-        self.wait_for_drdy().await?;
+        self.drdy.wait_for_low().await.map_err(Ads1256Error::Gpio)?;
 
         // Update MUX register
         let positive = channel & 0x07;
@@ -48,7 +48,7 @@ where
         }
 
         // Wait for DRDY
-        self.wait_for_drdy().await?;
+        self.drdy.wait_for_low().await.map_err(Ads1256Error::Gpio)?;
 
         // Update MUX register for next reading
         let positive = channel & 0x07;

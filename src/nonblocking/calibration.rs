@@ -16,7 +16,7 @@ where
         self.send_command(CMD_SELFCAL).await?;
 
         // Wait for DRDY in non-blocking way
-        self.wait_for_drdy().await?;
+        self.drdy.wait_for_low().await.map_err(Ads1256Error::Gpio)?;
 
         Ok(())
     }
@@ -26,7 +26,7 @@ where
         self.send_command(CMD_SELFOCAL).await?;
 
         // Wait for DRDY in non-blocking way
-        self.wait_for_drdy().await?;
+        self.drdy.wait_for_low().await.map_err(Ads1256Error::Gpio)?;
 
         Ok(())
     }
@@ -36,7 +36,7 @@ where
         self.send_command(CMD_SELFGCAL).await?;
 
         // Wait for DRDY in non-blocking way
-        self.wait_for_drdy().await?;
+        self.drdy.wait_for_low().await.map_err(Ads1256Error::Gpio)?;
 
         Ok(())
     }
@@ -48,7 +48,7 @@ where
         self.send_command(CMD_SYSOCAL).await?;
 
         // Wait for DRDY in non-blocking way
-        self.wait_for_drdy().await?;
+        self.drdy.wait_for_low().await.map_err(Ads1256Error::Gpio)?;
 
         Ok(())
     }
@@ -58,7 +58,7 @@ where
         self.send_command(CMD_SYSGCAL).await?;
 
         // Wait for DRDY in non-blocking way
-        self.wait_for_drdy().await?;
+        self.drdy.wait_for_low().await.map_err(Ads1256Error::Gpio)?;
 
         Ok(())
     }

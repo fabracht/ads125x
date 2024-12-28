@@ -21,7 +21,7 @@ where
 {
     /// Enter continuous conversion mode
     pub async fn enter_continuous_mode(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
-        self.wait_for_drdy().await?;
+        self.drdy.wait_for_low().await.map_err(Ads1256Error::Gpio)?;
 
         // Exit standby if in one-shot mode
         if self.mode == Mode::OneShot {
@@ -41,7 +41,7 @@ where
     pub async fn enter_one_shot_mode(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
         if self.mode == Mode::Continuous {
             self.send_command(CMD_SDATAC).await?;
-            self.wait_for_drdy().await?;
+            self.drdy.wait_for_low().await.map_err(Ads1256Error::Gpio)?;
         }
 
         // Enter standby mode
@@ -57,7 +57,7 @@ where
         }
 
         // Wait for DRDY in non-blocking way
-        self.wait_for_drdy().await?;
+        self.drdy.wait_for_low().await.map_err(Ads1256Error::Gpio)?;
 
         // Read the data
         self.cs.wait_for_low().await.map_err(Ads1256Error::Gpio)?;
@@ -88,7 +88,7 @@ where
         }
 
         // Wait for DRDY
-        self.wait_for_drdy().await?;
+        self.drdy.wait_for_low().await.map_err(Ads1256Error::Gpio)?;
 
         // Perform synchronization
         self.send_command(CMD_SYNC).await?;
