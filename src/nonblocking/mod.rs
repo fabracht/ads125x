@@ -6,16 +6,15 @@ pub mod operations;
 pub mod utils;
 
 use crate::{constants::*, error::Ads1256Error};
-use core::{
-    future::Future,
-    pin::Pin,
-    task::{Context, Poll, Waker},
-};
-use embedded_hal::{
-    delay::DelayNs,
-    digital::{InputPin, OutputPin},
-    spi::SpiDevice,
-};
+// use core::{
+//     future::Future,
+//     pin::Pin,
+//     task::{Context, Poll},
+// };
+// use embedded_io_async::{Read, Write};
+
+use embedded_hal::digital::{InputPin, OutputPin};
+use embedded_hal_async::{delay::DelayNs, spi::SpiDevice};
 
 /// ADC operating state
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -36,12 +35,6 @@ pub enum State {
 pub enum Mode {
     OneShot,
     Continuous,
-}
-
-/// A non-blocking conversion future
-pub struct Conversion<'a, SPI, CS, DRDY, PDWN, DELAY> {
-    adc: &'a mut Ads1256NonBlocking<SPI, CS, DRDY, PDWN, DELAY>,
-    waker: Option<Waker>,
 }
 
 /// Non-blocking ADS1256 driver
@@ -91,14 +84,6 @@ where
         }
     }
 
-    /// Starts a one-shot conversion
-    pub fn start_conversion(&mut self) -> Conversion<'_, SPI, CS, DRDY, PDWN, DELAY> {
-        Conversion {
-            adc: self,
-            waker: None,
-        }
-    }
-
     /// Poll the current state
     pub fn poll_state(&mut self) -> Result<State, Ads1256Error<SpiError, GpioError>> {
         match self.state {
@@ -138,32 +123,6 @@ where
             _ => Err(Ads1256Error::InvalidState(
                 "Cannot change channel in current state",
             )),
-        }
-    }
-}
-
-impl<'a, SPI, CS, DRDY, PDWN, DELAY, SpiError, GpioError> Future
-    for Conversion<'a, SPI, CS, DRDY, PDWN, DELAY>
-where
-    SPI: SpiDevice<Error = SpiError>,
-    CS: OutputPin<Error = GpioError>,
-    DRDY: InputPin<Error = GpioError>,
-    PDWN: OutputPin<Error = GpioError>,
-    DELAY: DelayNs,
-{
-    type Output = Result<i32, Ads1256Error<SpiError, GpioError>>;
-
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        // Store waker for future notifications
-        self.waker = Some(cx.waker().clone());
-
-        match self.adc.poll_state()? {
-            State::Reading => {
-                // Read the conversion result
-                let result = self.adc.read_data()?;
-                Poll::Ready(Ok(result))
-            }
-            _ => Poll::Pending,
         }
     }
 }

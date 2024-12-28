@@ -4,11 +4,8 @@ use crate::{
     error::Ads1256Error,
     nonblocking::{utils::yield_now, Ads1256NonBlocking, Mode, State},
 };
-use embedded_hal::{
-    delay::DelayNs,
-    digital::{InputPin, OutputPin},
-    spi::SpiDevice,
-};
+use embedded_hal::digital::{InputPin, OutputPin};
+use embedded_hal_async::{delay::DelayNs, spi::SpiDevice};
 
 impl<SPI, CS, DRDY, PDWN, DELAY, SpiError, GpioError> Ads1256NonBlocking<SPI, CS, DRDY, PDWN, DELAY>
 where
@@ -24,7 +21,7 @@ where
             State::Idle | State::Standby => {
                 // Exit standby if needed
                 if self.state == State::Standby {
-                    self.send_command(CMD_WAKEUP)?;
+                    self.send_command(CMD_WAKEUP).await?;
                     self.state = State::PoweringUp;
 
                     // Wait for power-up
@@ -34,8 +31,8 @@ where
                 }
 
                 // Enter continuous mode
-                self.send_command(CMD_RDATAC)?;
-                self.delay.delay_us(T6_DELAY);
+                self.send_command(CMD_RDATAC).await?;
+                self.delay.delay_us(T6_DELAY).await;
                 self.mode = Mode::Continuous;
                 self.state = State::Converting;
                 Ok(())
@@ -57,7 +54,7 @@ where
             yield_now().await;
         }
 
-        self.send_command(CMD_SDATAC)?;
+        self.send_command(CMD_SDATAC).await?;
         self.mode = Mode::OneShot;
         self.state = State::Idle;
         Ok(())
@@ -77,7 +74,10 @@ where
         // Read the data
         self.cs.set_low().map_err(Ads1256Error::Gpio)?;
         let mut buffer = [0u8; 3];
-        self.spi.read(&mut buffer).map_err(Ads1256Error::Spi)?;
+        self.spi
+            .read(&mut buffer)
+            .await
+            .map_err(Ads1256Error::Spi)?;
         self.cs.set_high().map_err(Ads1256Error::Gpio)?;
 
         // Convert to signed 24-bit value
@@ -103,9 +103,9 @@ where
         }
 
         // Perform synchronization
-        self.send_command(CMD_SYNC)?;
-        self.delay.delay_us(T11_DELAY);
-        self.send_command(CMD_WAKEUP)?;
+        self.send_command(CMD_SYNC).await?;
+        self.delay.delay_us(T11_DELAY).await;
+        self.send_command(CMD_WAKEUP).await?;
 
         Ok(())
     }

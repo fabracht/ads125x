@@ -4,11 +4,8 @@ use crate::{
     error::Ads1256Error,
     nonblocking::{utils::yield_now, Ads1256NonBlocking},
 };
-use embedded_hal::{
-    delay::DelayNs,
-    digital::{InputPin, OutputPin},
-    spi::SpiDevice,
-};
+use embedded_hal::digital::{InputPin, OutputPin};
+use embedded_hal_async::{delay::DelayNs, spi::SpiDevice};
 
 impl<SPI, CS, DRDY, PDWN, DELAY, SpiError, GpioError> Ads1256NonBlocking<SPI, CS, DRDY, PDWN, DELAY>
 where
@@ -20,7 +17,7 @@ where
 {
     /// Perform self-calibration
     pub async fn self_calibrate(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
-        self.send_command(CMD_SELFCAL)?;
+        self.send_command(CMD_SELFCAL).await?;
 
         // Wait for DRDY in non-blocking way
         while !self.drdy.is_low().map_err(Ads1256Error::Gpio)? {
@@ -31,7 +28,7 @@ where
 
     /// Perform self offset calibration
     pub async fn self_offset_calibrate(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
-        self.send_command(CMD_SELFOCAL)?;
+        self.send_command(CMD_SELFOCAL).await?;
 
         // Wait for DRDY in non-blocking way
         while !self.drdy.is_low().map_err(Ads1256Error::Gpio)? {
@@ -42,7 +39,7 @@ where
 
     /// Perform self gain calibration
     pub async fn self_gain_calibrate(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
-        self.send_command(CMD_SELFGCAL)?;
+        self.send_command(CMD_SELFGCAL).await?;
 
         // Wait for DRDY in non-blocking way
         while !self.drdy.is_low().map_err(Ads1256Error::Gpio)? {
@@ -55,7 +52,7 @@ where
     pub async fn system_offset_calibrate(
         &mut self,
     ) -> Result<(), Ads1256Error<SpiError, GpioError>> {
-        self.send_command(CMD_SYSOCAL)?;
+        self.send_command(CMD_SYSOCAL).await?;
 
         // Wait for DRDY in non-blocking way
         while !self.drdy.is_low().map_err(Ads1256Error::Gpio)? {
@@ -66,7 +63,7 @@ where
 
     /// Perform system gain calibration
     pub async fn system_gain_calibrate(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
-        self.send_command(CMD_SYSGCAL)?;
+        self.send_command(CMD_SYSGCAL).await?;
 
         // Wait for DRDY in non-blocking way
         while !self.drdy.is_low().map_err(Ads1256Error::Gpio)? {
@@ -80,9 +77,9 @@ where
         &mut self,
     ) -> Result<i32, Ads1256Error<SpiError, GpioError>> {
         let mut buffer = [0u8; 3];
-        self.read_register(REG_OFC0, &mut buffer[0..1])?;
-        self.read_register(REG_OFC1, &mut buffer[1..2])?;
-        self.read_register(REG_OFC2, &mut buffer[2..3])?;
+        self.read_register(REG_OFC0, &mut buffer[0..1]).await?;
+        self.read_register(REG_OFC1, &mut buffer[1..2]).await?;
+        self.read_register(REG_OFC2, &mut buffer[2..3]).await?;
         Ok(((buffer[0] as i32) << 16) | ((buffer[1] as i32) << 8) | (buffer[2] as i32))
     }
 
@@ -91,9 +88,9 @@ where
         &mut self,
     ) -> Result<i32, Ads1256Error<SpiError, GpioError>> {
         let mut buffer = [0u8; 3];
-        self.read_register(REG_FSC0, &mut buffer[0..1])?;
-        self.read_register(REG_FSC1, &mut buffer[1..2])?;
-        self.read_register(REG_FSC2, &mut buffer[2..3])?;
+        self.read_register(REG_FSC0, &mut buffer[0..1]).await?;
+        self.read_register(REG_FSC1, &mut buffer[1..2]).await?;
+        self.read_register(REG_FSC2, &mut buffer[2..3]).await?;
         Ok(((buffer[0] as i32) << 16) | ((buffer[1] as i32) << 8) | (buffer[2] as i32))
     }
 
@@ -103,9 +100,9 @@ where
         value: i32,
     ) -> Result<(), Ads1256Error<SpiError, GpioError>> {
         let data = [(value >> 16) as u8, (value >> 8) as u8, value as u8];
-        self.write_register(REG_OFC0, &data[0..1])?;
-        self.write_register(REG_OFC1, &data[1..2])?;
-        self.write_register(REG_OFC2, &data[2..3])?;
+        self.write_register(REG_OFC0, &data[0..1]).await?;
+        self.write_register(REG_OFC1, &data[1..2]).await?;
+        self.write_register(REG_OFC2, &data[2..3]).await?;
         Ok(())
     }
 
@@ -115,16 +112,16 @@ where
         value: i32,
     ) -> Result<(), Ads1256Error<SpiError, GpioError>> {
         let data = [(value >> 16) as u8, (value >> 8) as u8, value as u8];
-        self.write_register(REG_FSC0, &data[0..1])?;
-        self.write_register(REG_FSC1, &data[1..2])?;
-        self.write_register(REG_FSC2, &data[2..3])?;
+        self.write_register(REG_FSC0, &data[0..1]).await?;
+        self.write_register(REG_FSC1, &data[1..2]).await?;
+        self.write_register(REG_FSC2, &data[2..3]).await?;
         Ok(())
     }
 
     /// Set PGA gain and perform self calibration
     pub async fn set_gain(&mut self, gain: Gain) -> Result<(), Ads1256Error<SpiError, GpioError>> {
         let adcon = gain as u8;
-        self.write_register(REG_ADCON, &[adcon])?;
+        self.write_register(REG_ADCON, &[adcon]).await?;
         self.gain = gain;
         self.self_calibrate().await?;
         Ok(())
@@ -135,7 +132,7 @@ where
         &mut self,
         data_rate: DataRate,
     ) -> Result<(), Ads1256Error<SpiError, GpioError>> {
-        self.write_register(REG_DRATE, &[data_rate as u8])?;
+        self.write_register(REG_DRATE, &[data_rate as u8]).await?;
         self.data_rate = data_rate;
         self.self_calibrate().await?;
         Ok(())
@@ -159,7 +156,7 @@ where
 
         for (reg, name) in registers.iter() {
             let mut buffer = [0u8; 1];
-            self.read_register(*reg, &mut buffer)?;
+            self.read_register(*reg, &mut buffer).await?;
             log::debug!("Register {}: 0x{:02X}", name, buffer[0]);
         }
 

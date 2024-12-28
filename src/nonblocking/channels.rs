@@ -6,11 +6,8 @@ use crate::{
     error::Ads1256Error,
     nonblocking::{utils::yield_now, Ads1256NonBlocking},
 };
-use embedded_hal::{
-    delay::DelayNs,
-    digital::{InputPin, OutputPin},
-    spi::SpiDevice,
-};
+use embedded_hal::digital::{InputPin, OutputPin};
+use embedded_hal_async::{delay::DelayNs, spi::SpiDevice};
 use heapless::Vec;
 
 const MAX_CHANNELS: usize = 8;
@@ -41,12 +38,12 @@ where
         let positive = channel & 0x07;
         let negative = 0x08; // AINCOM
         let mux = (positive << 4) | negative;
-        self.write_register(REG_MUX, &[mux])?;
+        self.write_register(REG_MUX, &[mux]).await?;
 
         // Synchronize the ADC
-        self.send_command(CMD_SYNC)?;
-        self.delay.delay_us(T11_DELAY);
-        self.send_command(CMD_WAKEUP)?;
+        self.send_command(CMD_SYNC).await?;
+        self.delay.delay_us(T11_DELAY).await;
+        self.send_command(CMD_WAKEUP).await?;
 
         self.current_channel = Some(channel);
         Ok(())
@@ -70,15 +67,15 @@ where
         let positive = channel & 0x07;
         let negative = 0x08; // AINCOM
         let mux = (positive << 4) | negative;
-        self.write_register(REG_MUX, &[mux])?;
+        self.write_register(REG_MUX, &[mux]).await?;
 
         // Restart conversion process
-        self.send_command(CMD_SYNC)?;
-        self.delay.delay_us(T11_DELAY);
-        self.send_command(CMD_WAKEUP)?;
+        self.send_command(CMD_SYNC).await?;
+        self.delay.delay_us(T11_DELAY).await;
+        self.send_command(CMD_WAKEUP).await?;
 
         // Read data from previous conversion
-        let result = self.read_data()?;
+        let result = self.read_data().await?;
 
         self.current_channel = Some(channel);
         Ok(result)

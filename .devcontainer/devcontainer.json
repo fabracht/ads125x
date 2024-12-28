@@ -19,7 +19,17 @@
 	// ]
 	"mounts": [
 		"source=${localEnv:HOME}${localEnv:USERPROFILE}/.ssh,target=/home/vscode/.ssh,type=bind,consistency=cached"
-	]
+	],
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"fill-labs.dependi",
+				"tamasfe.even-better-toml",
+				"JScearcy.rust-doc-viewer",
+				"rust-lang.rust-analyzer"
+			]
+		}
+	}
 	// Features to add to the dev container. More info: https://containers.dev/features.
 	// "features": {},
 
