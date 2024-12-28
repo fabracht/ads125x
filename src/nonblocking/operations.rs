@@ -98,6 +98,7 @@ where
         &mut self,
         buffer_enabled: bool,
     ) -> Result<(), Ads1256Error<SpiError, GpioError>> {
+        log::info!("Initializing the device");
         // Power up sequence
         self.pdwn
             .wait_for_high()
