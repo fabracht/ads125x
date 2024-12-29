@@ -73,9 +73,8 @@ where
         let mut seq_channels = [0u8; MAX_CHANNELS];
         let mut length = 0;
         for (index, &ch) in channels.iter().take(MAX_CHANNELS).enumerate() {
-            if ch <= 7 {
-                // Ignore invalid channels
-                let _ = seq_channels[index] = ch;
+            if ch <= MAX_CHANNELS as u8 {
+                seq_channels[index] = ch;
                 length += 1;
             }
         }

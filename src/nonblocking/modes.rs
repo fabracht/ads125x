@@ -60,13 +60,13 @@ where
         self.drdy.wait_for_low().await.map_err(Ads1256Error::Gpio)?;
 
         // Read the data
-        self.cs.wait_for_low().await.map_err(Ads1256Error::Gpio)?;
+        self.cs.set_low().map_err(Ads1256Error::Gpio)?;
         let mut buffer = [0u8; 3];
         self.spi
             .read(&mut buffer)
             .await
             .map_err(Ads1256Error::Spi)?;
-        self.cs.wait_for_high().await.map_err(Ads1256Error::Gpio)?;
+        self.cs.set_high().map_err(Ads1256Error::Gpio)?;
 
         // Convert to signed 24-bit value
         let raw_value = ((buffer[0] as i32) << 16) | ((buffer[1] as i32) << 8) | (buffer[2] as i32);

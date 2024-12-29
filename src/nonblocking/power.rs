@@ -15,14 +15,11 @@ where
 {
     pub async fn reset(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
         // Pull PDWN low
-        self.pdwn.wait_for_low().await.map_err(Ads1256Error::Gpio)?;
+        self.pdwn.set_low().map_err(Ads1256Error::Gpio)?;
         self.delay.delay_ms(10).await;
 
         // Pull PDWN high
-        self.pdwn
-            .wait_for_high()
-            .await
-            .map_err(Ads1256Error::Gpio)?;
+        self.pdwn.set_high().map_err(Ads1256Error::Gpio)?;
         self.delay.delay_ms(10).await;
 
         // Send reset command
@@ -41,7 +38,7 @@ where
 
     pub async fn enter_power_down(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
         // Hold SYNC/PDWN low for 20 DRDY periods
-        self.pdwn.wait_for_low().await.map_err(Ads1256Error::Gpio)?;
+        self.pdwn.set_low().map_err(Ads1256Error::Gpio)?;
 
         // Calculate wait time based on data rate period
         let drdy_period_us = self.data_rate.period_us();
@@ -53,25 +50,19 @@ where
     }
 
     pub async fn exit_power_down(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
-        self.pdwn
-            .wait_for_high()
-            .await
-            .map_err(Ads1256Error::Gpio)?;
+        self.pdwn.set_high().map_err(Ads1256Error::Gpio)?;
         self.delay.delay_ms(30).await; // Wait for oscillator startup
         Ok(())
     }
 
     pub async fn synchronize(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
         // Use SYNC pin to synchronize
-        self.pdwn.wait_for_low().await.map_err(Ads1256Error::Gpio)?;
+        self.pdwn.set_low().map_err(Ads1256Error::Gpio)?;
 
         // Wait for t16 (timing for the SYNC pulse)
         self.delay.delay_us(T16_DELAY).await;
 
-        self.pdwn
-            .wait_for_high()
-            .await
-            .map_err(Ads1256Error::Gpio)?;
+        self.pdwn.set_high().map_err(Ads1256Error::Gpio)?;
 
         // Wait for DRDY to indicate new conversion started
         self.drdy.wait_for_low().await.map_err(Ads1256Error::Gpio)?;

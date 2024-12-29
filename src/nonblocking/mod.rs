@@ -18,14 +18,14 @@ pub struct Ads1256NonBlocking<SPI, CS, DRDY, PDWN, DELAY> {
     pub(crate) drdy: DRDY,
     pub(crate) pdwn: PDWN,
     pub(crate) delay: DELAY,
+    vref: f64,
     mode: Mode,
     gain: Gain,
     data_rate: DataRate,
     current_channel: Option<u8>,
 }
 
-impl<'a, SPI, CS, DRDY, PDWN, DELAY, SpiError, GpioError>
-    Ads1256NonBlocking<SPI, CS, DRDY, PDWN, DELAY>
+impl<SPI, CS, DRDY, PDWN, DELAY, SpiError, GpioError> Ads1256NonBlocking<SPI, CS, DRDY, PDWN, DELAY>
 where
     SPI: SpiDevice<Error = SpiError>,
     CS: Wait + OutputPin<Error = GpioError>,
@@ -49,10 +49,29 @@ where
             drdy,
             pdwn,
             delay,
+            vref: DEFAULT_VREF,
             mode: Mode::OneShot,
             gain,
             data_rate,
             current_channel: None,
         }
+    }
+    /// Get the current reference voltage
+    pub fn vref(&self) -> f64 {
+        self.vref
+    }
+
+    pub fn set_vref(&mut self, vref: f64) {
+        self.vref = vref;
+    }
+
+    /// Get the current gain
+    pub fn gain(&self) -> Gain {
+        self.gain
+    }
+
+    /// Get the current gain value
+    pub fn gain_value(&self) -> f64 {
+        self.gain.value()
     }
 }

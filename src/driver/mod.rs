@@ -59,33 +59,13 @@ where
         }
     }
 
-    /// Creates a new ADS1256 driver instance with custom reference voltage
-    pub fn new_with_vref(
-        spi: SPI,
-        cs: CS,
-        drdy: DRDY,
-        pdwn: PDWN,
-        delay: DELAY,
-        gain: Gain,
-        data_rate: DataRate,
-        vref: f64,
-    ) -> Self {
-        Ads1256 {
-            spi,
-            cs,
-            drdy,
-            pdwn,
-            delay,
-            gain,
-            data_rate,
-            vref,
-            mode: OperatingMode::OneShot,
-        }
-    }
-
     /// Get the current reference voltage
     pub fn vref(&self) -> f64 {
         self.vref
+    }
+
+    pub fn set_vref(&mut self, vref: f64) {
+        self.vref = vref;
     }
 
     /// Get the current gain

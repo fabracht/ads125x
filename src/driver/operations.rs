@@ -65,18 +65,6 @@ where
         Ok(())
     }
 
-    /// Blocking wait for DRDY to go low
-    pub(crate) fn wait_for_drdy(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
-        let timeout = 50000;
-        for _ in 0..timeout {
-            if self.drdy.is_low().map_err(Ads1256Error::Gpio)? {
-                return Ok(());
-            }
-            self.delay.delay_us(self.data_rate.period_us() as u32);
-        }
-        Err(Ads1256Error::Timeout)
-    }
-
     /// Reads raw data from the ADC
     pub(crate) fn read_data(&mut self) -> Result<i32, Ads1256Error<SpiError, GpioError>> {
         self.cs.set_low().map_err(Ads1256Error::Gpio)?;
@@ -148,5 +136,17 @@ where
         self.wait_for_drdy()?;
 
         Ok(())
+    }
+
+    /// Blocking wait for DRDY to go low
+    pub(crate) fn wait_for_drdy(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
+        let timeout = 50000;
+        for _ in 0..timeout {
+            if self.drdy.is_low().map_err(Ads1256Error::Gpio)? {
+                return Ok(());
+            }
+            self.delay.delay_us(self.data_rate.period_us() as u32);
+        }
+        Err(Ads1256Error::Timeout)
     }
 }
