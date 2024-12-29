@@ -16,12 +16,9 @@ where
         &mut self,
         channel: u8,
     ) -> Result<(), Ads1256Error<SpiError, GpioError>> {
-        if channel > 7 {
+        if channel > MAX_CHANNELS as u8 {
             return Err(Ads1256Error::InvalidInputChannel);
         }
-
-        // Wait for DRDY in non-blocking way
-        self.drdy.wait_for_low().await.map_err(Ads1256Error::Gpio)?;
 
         // Update MUX register
         let positive = channel & 0x07;
@@ -43,7 +40,7 @@ where
         &mut self,
         channel: u8,
     ) -> Result<i32, Ads1256Error<SpiError, GpioError>> {
-        if channel > 7 {
+        if channel > MAX_CHANNELS as u8 {
             return Err(Ads1256Error::InvalidInputChannel);
         }
 
