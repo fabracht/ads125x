@@ -18,12 +18,12 @@ where
         &mut self,
         command: u8,
     ) -> Result<(), Ads1256Error<SpiError, GpioError>> {
-        self.cs.wait_for_low().await.map_err(Ads1256Error::Gpio)?;
+        self.cs.set_low().map_err(Ads1256Error::Gpio)?;
         self.spi
             .write(&[command])
             .await
             .map_err(Ads1256Error::Spi)?;
-        self.cs.wait_for_high().await.map_err(Ads1256Error::Gpio)?;
+        self.cs.set_high().map_err(Ads1256Error::Gpio)?;
         Ok(())
     }
 
@@ -36,14 +36,14 @@ where
         let command = CMD_WREG | (reg & 0x0F);
         let count = (data.len() - 1) as u8;
 
-        self.cs.wait_for_low().await.map_err(Ads1256Error::Gpio)?;
+        self.cs.set_low().map_err(Ads1256Error::Gpio)?;
         self.spi
             .write(&[command, count])
             .await
             .map_err(Ads1256Error::Spi)?;
         self.delay.delay_us(5).await;
         self.spi.write(data).await.map_err(Ads1256Error::Spi)?;
-        self.cs.wait_for_high().await.map_err(Ads1256Error::Gpio)?;
+        self.cs.set_high().map_err(Ads1256Error::Gpio)?;
         Ok(())
     }
 
@@ -56,20 +56,20 @@ where
         let command = CMD_RREG | (reg & 0x0F);
         let count = (buffer.len() - 1) as u8;
 
-        self.cs.wait_for_low().await.map_err(Ads1256Error::Gpio)?;
+        self.cs.set_low().map_err(Ads1256Error::Gpio)?;
         self.spi
             .write(&[command, count])
             .await
             .map_err(Ads1256Error::Spi)?;
         self.delay.delay_us(5).await;
         self.spi.read(buffer).await.map_err(Ads1256Error::Spi)?;
-        self.cs.wait_for_high().await.map_err(Ads1256Error::Gpio)?;
+        self.cs.set_high().map_err(Ads1256Error::Gpio)?;
         Ok(())
     }
 
     /// Reads raw data from the ADC
     pub(crate) async fn read_data(&mut self) -> Result<i32, Ads1256Error<SpiError, GpioError>> {
-        self.cs.wait_for_low().await.map_err(Ads1256Error::Gpio)?;
+        self.cs.set_low().map_err(Ads1256Error::Gpio)?;
         self.spi
             .write(&[CMD_RDATA])
             .await
@@ -81,7 +81,7 @@ where
             .read(&mut buffer)
             .await
             .map_err(Ads1256Error::Spi)?;
-        self.cs.wait_for_high().await.map_err(Ads1256Error::Gpio)?;
+        self.cs.set_high().map_err(Ads1256Error::Gpio)?;
 
         let raw_value = ((buffer[0] as i32) << 16) | ((buffer[1] as i32) << 8) | (buffer[2] as i32);
         let value = if raw_value & 0x800000 != 0 {
