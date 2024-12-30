@@ -6,9 +6,9 @@ use embedded_hal_async::{delay::DelayNs, digital::Wait, spi::SpiDevice};
 impl<SPI, CS, DRDY, PDWN, DELAY, SpiError, GpioError> Ads1256NonBlocking<SPI, CS, DRDY, PDWN, DELAY>
 where
     SPI: SpiDevice<Error = SpiError>,
-    CS: Wait + OutputPin<Error = GpioError>,
+    CS: OutputPin<Error = GpioError>,
     DRDY: Wait + InputPin<Error = GpioError>,
-    PDWN: Wait + OutputPin<Error = GpioError>,
+    PDWN: OutputPin<Error = GpioError>,
     DELAY: DelayNs,
 {
     /// Change channel operation
@@ -93,9 +93,9 @@ pub struct ChannelSequencer<'a, SPI, CS, DRDY, PDWN, DELAY> {
 impl<'a, SPI, CS, DRDY, PDWN, DELAY> ChannelSequencer<'a, SPI, CS, DRDY, PDWN, DELAY>
 where
     SPI: SpiDevice,
-    CS: Wait + OutputPin,
+    CS: OutputPin,
     DRDY: Wait + InputPin,
-    PDWN: Wait + OutputPin,
+    PDWN: OutputPin,
     DELAY: DelayNs,
 {
     fn new(

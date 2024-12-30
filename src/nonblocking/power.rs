@@ -8,9 +8,9 @@ use embedded_hal_async::{delay::DelayNs, digital::Wait, spi::SpiDevice};
 impl<SPI, CS, DRDY, PDWN, DELAY, SpiError, GpioError> Ads1256NonBlocking<SPI, CS, DRDY, PDWN, DELAY>
 where
     SPI: SpiDevice<Error = SpiError>,
-    CS: Wait + OutputPin<Error = GpioError>,
+    CS: OutputPin<Error = GpioError>,
     DRDY: Wait + InputPin<Error = CS::Error>,
-    PDWN: Wait + OutputPin<Error = CS::Error>,
+    PDWN: OutputPin<Error = CS::Error>,
     DELAY: DelayNs,
 {
     pub async fn reset(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {

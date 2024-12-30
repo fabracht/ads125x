@@ -8,9 +8,9 @@ impl<SPI, CS, DRDY, PDWN, DELAY, SpiError, GpioError>
     crate::nonblocking::Ads1256NonBlocking<SPI, CS, DRDY, PDWN, DELAY>
 where
     SPI: SpiDevice<Error = SpiError>,
-    CS: Wait + OutputPin<Error = GpioError>,
+    CS:OutputPin<Error = GpioError>,
     DRDY: Wait + InputPin<Error = GpioError>,
-    PDWN: Wait + OutputPin<Error = GpioError>,
+    PDWN:OutputPin<Error = GpioError>,
     DELAY: DelayNs,
 {
     /// Sends a command to the ADS1256
