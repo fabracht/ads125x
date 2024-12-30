@@ -50,6 +50,30 @@ where
         Ok(())
     }
 
+    /// Read a single conversion in one-shot mode
+    pub async fn read_one_shot(&mut self) -> Result<i32, Ads1256Error<SpiError, GpioError>> {
+        if self.mode != Mode::OneShot {
+            return Err(Ads1256Error::InvalidState("Not in one-shot mode"));
+        }
+
+        // Wake up the ADC to start conversion
+        self.send_command(CMD_WAKEUP).await?;
+
+        // Wait for modulator power-up (33.3μs @ 7.68MHz)
+        self.delay.delay_us(34).await;
+
+        // Wait for conversion to complete
+        self.drdy.wait_for_low().await.map_err(Ads1256Error::Gpio)?;
+
+        // Read the conversion result
+        let result = self.read_data().await?;
+
+        // Return to standby for power saving
+        self.send_command(CMD_STANDBY).await?;
+
+        Ok(result)
+    }
+
     /// Read data in continuous mode
     pub async fn read_continuous(&mut self) -> Result<i32, Ads1256Error<SpiError, GpioError>> {
         if self.mode != Mode::Continuous {
