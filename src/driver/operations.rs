@@ -149,15 +149,4 @@ where
         }
         Err(Ads1256Error::Timeout)
     }
-
-    pub fn wait_for_drdy_high(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {
-        let timeout = 50000;
-        for _ in 0..timeout {
-            if self.drdy.is_high().map_err(Ads1256Error::Gpio)? {
-                return Ok(());
-            }
-            self.delay.delay_us(self.data_rate.period_us() as u32);
-        }
-        Err(Ads1256Error::Timeout)
-    }
 }
