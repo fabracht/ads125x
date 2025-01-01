@@ -26,7 +26,8 @@
 				"fill-labs.dependi",
 				"tamasfe.even-better-toml",
 				"JScearcy.rust-doc-viewer",
-				"rust-lang.rust-analyzer"
+				"rust-lang.rust-analyzer",
+				"mhutchie.git-graph"
 			]
 		}
 	}
