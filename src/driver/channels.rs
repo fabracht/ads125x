@@ -88,12 +88,16 @@ where
         self.wait_for_drdy()?;
 
         // Set the new channel in MUX register
+        // Check if channel number is within valid range
         if channel > 7 {
             return Err(Ads1256Error::InvalidInputChannel);
         }
 
+        // Set AINP to the desired channel (AIN0 to AIN7)
         let positive = channel & 0x07;
+        // Set AINN to AINCOM
         let negative = 0x08;
+        // Construct MUX register value
         let mux = (positive << 4) | negative;
 
         log::debug!(
@@ -105,12 +109,16 @@ where
         // Write to MUX register
         self.write_register(REG_MUX, &[mux])?;
 
-        // Restart conversion process
+        // Restart conversion process with SYNC and WAKEUP
         self.send_command(CMD_SYNC)?;
-        self.delay.delay_us(T11_DELAY);
+        self.delay.delay_us(100); // t11 delay between commands
         self.send_command(CMD_WAKEUP)?;
 
-        // Read data immediately - this is from the previous conversion
+        // Wait for DRDY to go high and then low (new data ready)
+        self.wait_for_drdy_high()?; // Wait for DRDY to go high
+        self.wait_for_drdy()?; // Wait for DRDY to go low
+
+        // Read and return the data from the previous conversion
         self.read_data()
     }
 
