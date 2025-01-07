@@ -8,12 +8,11 @@ use embedded_hal::{
     spi::SpiDevice,
 };
 
-impl<SPI, CS, DRDY, PDWN, DELAY, SpiError, GpioError> Ads1256<SPI, CS, DRDY, PDWN, DELAY>
+impl<SPI, DRDY, PDWN, DELAY, SpiError, GpioError> Ads1256<SPI, DRDY, PDWN, DELAY>
 where
     SPI: SpiDevice<Error = SpiError>,
-    CS: OutputPin<Error = GpioError>,
-    DRDY: InputPin<Error = CS::Error>,
-    PDWN: OutputPin<Error = CS::Error>,
+    DRDY: InputPin<Error = GpioError>,
+    PDWN: OutputPin<Error = GpioError>,
     DELAY: DelayNs,
 {
     pub fn reset(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {

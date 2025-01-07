@@ -16,9 +16,8 @@ use modes::OperatingMode;
 
 /// ADS1256 driver
 #[derive(Debug)]
-pub struct Ads1256<SPI, CS, DRDY, PDWN, DELAY> {
+pub struct Ads1256<SPI, DRDY, PDWN, DELAY> {
     spi: SPI,
-    cs: CS,
     pub drdy: DRDY,
     pdwn: PDWN,
     pub delay: DELAY,
@@ -28,10 +27,9 @@ pub struct Ads1256<SPI, CS, DRDY, PDWN, DELAY> {
     mode: OperatingMode,
 }
 
-impl<SPI, CS, DRDY, PDWN, DELAY, SpiError, GpioError> Ads1256<SPI, CS, DRDY, PDWN, DELAY>
+impl<SPI, DRDY, PDWN, DELAY, SpiError, GpioError> Ads1256<SPI, DRDY, PDWN, DELAY>
 where
     SPI: SpiDevice<Error = SpiError>,
-    CS: OutputPin<Error = GpioError>,
     DRDY: InputPin<Error = GpioError>,
     PDWN: OutputPin<Error = GpioError>,
     DELAY: DelayNs,
@@ -39,7 +37,6 @@ where
     /// Creates a new ADS1256 driver instance
     pub fn new(
         spi: SPI,
-        cs: CS,
         drdy: DRDY,
         pdwn: PDWN,
         delay: DELAY,
@@ -48,7 +45,6 @@ where
     ) -> Self {
         Ads1256 {
             spi,
-            cs,
             drdy,
             pdwn,
             delay,

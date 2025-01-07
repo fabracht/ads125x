@@ -39,7 +39,6 @@ mod tests {
 
         let _adc = Ads1256::new(
             spi.clone(),
-            cs.clone(),
             drdy.clone(),
             pdwn.clone(),
             delay,
@@ -63,7 +62,6 @@ mod tests {
 
         let adc = Ads1256::new(
             spi.clone(),
-            cs.clone(),
             drdy.clone(),
             pdwn.clone(),
             delay,

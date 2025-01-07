@@ -5,12 +5,11 @@ use crate::error::Ads1256Error;
 use embedded_hal::digital::{InputPin, OutputPin};
 use embedded_hal_async::{delay::DelayNs, digital::Wait, spi::SpiDevice};
 
-impl<SPI, CS, DRDY, PDWN, DELAY, SpiError, GpioError> Ads1256NonBlocking<SPI, CS, DRDY, PDWN, DELAY>
+impl<SPI, DRDY, PDWN, DELAY, SpiError, GpioError> Ads1256NonBlocking<SPI, DRDY, PDWN, DELAY>
 where
     SPI: SpiDevice<Error = SpiError>,
-    CS: OutputPin<Error = GpioError>,
-    DRDY: Wait + InputPin<Error = CS::Error>,
-    PDWN: OutputPin<Error = CS::Error>,
+    DRDY: Wait + InputPin<Error = GpioError>,
+    PDWN: OutputPin<Error = GpioError>,
     DELAY: DelayNs,
 {
     pub async fn reset(&mut self) -> Result<(), Ads1256Error<SpiError, GpioError>> {

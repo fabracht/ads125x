@@ -17,12 +17,11 @@ pub enum OperatingMode {
     Continuous,
 }
 
-impl<SPI, CS, DRDY, PDWN, DELAY, SpiError, GpioError> Ads1256<SPI, CS, DRDY, PDWN, DELAY>
+impl<SPI, DRDY, PDWN, DELAY, SpiError, GpioError> Ads1256<SPI, DRDY, PDWN, DELAY>
 where
     SPI: SpiDevice<Error = SpiError>,
-    CS: OutputPin<Error = GpioError>,
-    DRDY: InputPin<Error = CS::Error>,
-    PDWN: OutputPin<Error = CS::Error>,
+    DRDY: InputPin<Error = GpioError>,
+    PDWN: OutputPin<Error = GpioError>,
     DELAY: DelayNs,
 {
     /// Initialize with specific operating mode
@@ -106,10 +105,8 @@ where
         self.wait_for_drdy()?;
 
         // In continuous mode, just read the data without sending RDATA command
-        self.cs.set_low().map_err(Ads1256Error::Gpio)?;
         let mut buffer = [0u8; 3];
         self.spi.read(&mut buffer).map_err(Ads1256Error::Spi)?;
-        self.cs.set_high().map_err(Ads1256Error::Gpio)?;
 
         // Convert to signed 24-bit value
         let raw_value = ((buffer[0] as i32) << 16) | ((buffer[1] as i32) << 8) | (buffer[2] as i32);

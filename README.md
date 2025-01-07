@@ -20,7 +20,7 @@ A no_std driver for the ADS1255/ADS1256 24-bit analog-to-digital converter (ADC)
 The driver is built on embedded-hal 1.0 traits and supports:
 
 - SPI interface up to 10MHz
-- GPIO pins for CS, DRDY, and PDWN control
+- GPIO pins for DRDY, and PDWN control
 - System clock configurations from 1-10MHz (7.68MHz typical)
 
 ## Development Setup
@@ -36,12 +36,14 @@ This project uses Visual Studio Code Dev Containers for development. This ensure
 ### Getting Started with Dev Container
 
 1. Clone the repository:
+
    ```bash
    git clone https://github.com/fabracht/ads125x.git
    cd ads125x
    ```
 
 2. Open the project in VS Code:
+
    ```bash
    code .
    ```
@@ -49,6 +51,7 @@ This project uses Visual Studio Code Dev Containers for development. This ensure
 3. When prompted, click "Reopen in Container" or press `F1` and select "Dev Containers: Reopen in Container"
 
 The container will be built automatically with all necessary dependencies installed. This includes:
+
 - Rust toolchain
 - Required system packages
 - GitHub CLI
@@ -89,7 +92,7 @@ fn main() -> Result<(), Error> {
     let delay = // ...
 
     // Initialize ADC
-    let mut adc = Ads1256::new(spi, cs, drdy, pdwn, delay,
+    let mut adc = Ads1256::new(spi, drdy, pdwn, delay,
         Gain::Gain1, DataRate::Sps1000);
     adc.init(true)?; // true enables input buffer
 
@@ -197,7 +200,7 @@ adc.enter_power_down()?;
 
 - SPI mode 1 (CPOL=0, CPHA=1)
 - Maximum SCLK frequency: fCLKIN/4
-- CS, DRDY, PDWN control pins
+- DRDY, PDWN control pins
 
 ## Error Handling
 

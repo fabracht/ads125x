@@ -3,10 +3,9 @@ use crate::{constants::*, error::Ads1256Error, nonblocking::Ads1256NonBlocking};
 use embedded_hal::digital::{InputPin, OutputPin};
 use embedded_hal_async::{delay::DelayNs, digital::Wait, spi::SpiDevice};
 
-impl<SPI, CS, DRDY, PDWN, DELAY, SpiError, GpioError> Ads1256NonBlocking<SPI, CS, DRDY, PDWN, DELAY>
+impl<SPI, DRDY, PDWN, DELAY, SpiError, GpioError> Ads1256NonBlocking<SPI, DRDY, PDWN, DELAY>
 where
     SPI: SpiDevice<Error = SpiError>,
-    CS: OutputPin<Error = GpioError>,
     DRDY: Wait + InputPin<Error = GpioError>,
     PDWN: OutputPin<Error = GpioError>,
     DELAY: DelayNs,
@@ -69,7 +68,7 @@ where
     pub fn create_channel_sequence(
         &mut self,
         channels: &[u8],
-    ) -> ChannelSequencer<'_, SPI, CS, DRDY, PDWN, DELAY> {
+    ) -> ChannelSequencer<'_, SPI, DRDY, PDWN, DELAY> {
         let mut seq_channels = [0u8; MAX_CHANNELS];
         let mut length = 0;
         for (index, &ch) in channels.iter().take(MAX_CHANNELS).enumerate() {
@@ -83,23 +82,22 @@ where
 }
 
 /// Channel sequencer for automated channel cycling
-pub struct ChannelSequencer<'a, SPI, CS, DRDY, PDWN, DELAY> {
-    adc: &'a mut Ads1256NonBlocking<SPI, CS, DRDY, PDWN, DELAY>,
+pub struct ChannelSequencer<'a, SPI, DRDY, PDWN, DELAY> {
+    adc: &'a mut Ads1256NonBlocking<SPI, DRDY, PDWN, DELAY>,
     channels: [u8; MAX_CHANNELS],
     current_index: usize,
     length: usize,
 }
 
-impl<'a, SPI, CS, DRDY, PDWN, DELAY> ChannelSequencer<'a, SPI, CS, DRDY, PDWN, DELAY>
+impl<'a, SPI, DRDY, PDWN, DELAY> ChannelSequencer<'a, SPI, DRDY, PDWN, DELAY>
 where
     SPI: SpiDevice,
-    CS: OutputPin,
     DRDY: Wait + InputPin,
     PDWN: OutputPin,
     DELAY: DelayNs,
 {
     fn new(
-        adc: &'a mut Ads1256NonBlocking<SPI, CS, DRDY, PDWN, DELAY>,
+        adc: &'a mut Ads1256NonBlocking<SPI, DRDY, PDWN, DELAY>,
         channels: [u8; MAX_CHANNELS],
         length: usize,
     ) -> Self {
@@ -117,7 +115,6 @@ where
     ) -> Option<Result<(u8, i32), Ads1256Error<SpiError, GpioError>>>
     where
         SPI: SpiDevice<Error = SpiError>,
-        CS: OutputPin<Error = GpioError>,
         DRDY: InputPin<Error = GpioError>,
         PDWN: OutputPin<Error = GpioError>,
     {

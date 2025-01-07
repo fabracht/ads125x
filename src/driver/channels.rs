@@ -8,12 +8,11 @@ use embedded_hal::{
     spi::SpiDevice,
 };
 
-impl<SPI, CS, DRDY, PDWN, DELAY, SpiError, GpioError> Ads1256<SPI, CS, DRDY, PDWN, DELAY>
+impl<SPI, DRDY, PDWN, DELAY, SpiError, GpioError> Ads1256<SPI, DRDY, PDWN, DELAY>
 where
     SPI: SpiDevice<Error = SpiError>,
-    CS: OutputPin<Error = GpioError>,
-    DRDY: InputPin<Error = CS::Error>,
-    PDWN: OutputPin<Error = CS::Error>,
+    DRDY: InputPin<Error = GpioError>,
+    PDWN: OutputPin<Error = GpioError>,
     DELAY: DelayNs,
 {
     /// Sets the input multiplexer for single-ended input
@@ -57,7 +56,7 @@ where
         Ok(())
     }
 
-    // /// Cycle to next channel efficiently as per datasheet Figure 19
+    /// Cycle to next channel efficiently as per datasheet Figure 19
     pub fn cycle_channel(&mut self, channel: u8) -> Result<i32, Ads1256Error<SpiError, GpioError>> {
         if channel > MAX_CHANNELS as u8 {
             return Err(Ads1256Error::InvalidInputChannel);
