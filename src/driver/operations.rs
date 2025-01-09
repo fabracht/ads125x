@@ -97,7 +97,7 @@ where
     pub fn init(&mut self, buffer_enabled: bool) -> Result<(), Ads1256Error<SpiError, GpioError>> {
         // Power up sequence
         self.pdwn.set_high().map_err(Ads1256Error::Gpio)?;
-        self.delay.delay_ms(10);
+        self.delay.delay_ms(40);
 
         // Reset the device
         self.send_command(CMD_RESET)?;

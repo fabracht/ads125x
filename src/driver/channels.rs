@@ -62,7 +62,7 @@ where
         if channel > MAX_CHANNELS as u8 {
             return Err(Ads1256Error::InvalidInputChannel);
         }
-
+        self.cs.set_low().map_err(Ads1256Error::Gpio)?;
         // Wait for DRDY to go low (indicating data is ready)
         self.wait_for_drdy()?;
 
@@ -76,7 +76,7 @@ where
         self.send_command(CMD_SYNC)?;
         self.delay.delay_us(T11_DELAY);
         self.send_command(CMD_WAKEUP)?;
-
+        self.cs.set_high().map_err(Ads1256Error::Gpio)?;
         // Step 3: Read data from previous conversion
         let result = self.read_data()?;
 

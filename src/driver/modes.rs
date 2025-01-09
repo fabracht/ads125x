@@ -106,8 +106,8 @@ where
         self.wait_for_drdy()?;
 
         // In continuous mode, just read the data without sending RDATA command
-        self.cs.set_low().map_err(Ads1256Error::Gpio)?;
         let mut buffer = [0u8; 3];
+        self.cs.set_low().map_err(Ads1256Error::Gpio)?;
         self.spi.read(&mut buffer).map_err(Ads1256Error::Spi)?;
         self.cs.set_high().map_err(Ads1256Error::Gpio)?;
 
