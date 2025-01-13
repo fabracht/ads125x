@@ -132,7 +132,7 @@ where
         for (reg, name) in registers.iter() {
             let mut buffer = [0u8; 1];
             self.read_register(*reg, &mut buffer)?;
-            log::debug!("Register {}: 0x{:02X}", name, buffer[0]);
+            log::info!("Register {}: 0x{:02X}", name, buffer[0]);
         }
 
         Ok(())
