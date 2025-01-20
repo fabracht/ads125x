@@ -121,6 +121,15 @@ where
         } else {
             raw_value
         };
+        // Log buffer contents when we get zero
+        if value == 0 {
+            log::debug!(
+                "Zero value read. Buffer: [{:02x}, {:02x}, {:02x}]",
+                buffer[0],
+                buffer[1],
+                buffer[2]
+            );
+        }
 
         Ok(value)
     }
