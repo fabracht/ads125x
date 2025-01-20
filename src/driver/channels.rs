@@ -18,7 +18,7 @@ where
 {
     /// Sets the input multiplexer for single-ended input
     pub fn set_channel(&mut self, channel: u8) -> Result<(), Ads1256Error<SpiError, GpioError>> {
-        if channel > MAX_CHANNELS as u8 {
+        if channel >= MAX_CHANNELS as u8 {
             return Err(Ads1256Error::InvalidInputChannel);
         }
 
@@ -42,7 +42,7 @@ where
         positive: u8,
         negative: u8,
     ) -> Result<(), Ads1256Error<SpiError, GpioError>> {
-        if positive > MAX_CHANNELS as u8 || negative > MAX_CHANNELS as u8 {
+        if positive >= MAX_CHANNELS as u8 || negative >= MAX_CHANNELS as u8 {
             return Err(Ads1256Error::InvalidInputChannel);
         }
 
@@ -89,7 +89,7 @@ where
         positive: u8,
         negative: u8,
     ) -> Result<i32, Ads1256Error<SpiError, GpioError>> {
-        if positive > MAX_CHANNELS as u8 || negative > MAX_CHANNELS as u8 {
+        if positive >= MAX_CHANNELS as u8 || negative >= MAX_CHANNELS as u8 {
             return Err(Ads1256Error::InvalidInputChannel);
         }
 
