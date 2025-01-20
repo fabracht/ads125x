@@ -106,8 +106,9 @@ where
         let drdy_before = self.drdy.is_low().map_err(Ads1256Error::Gpio)?;
         log::info!("DRDY before wait: {}", drdy_before);
         self.wait_for_drdy()?;
-
-        // In continuous mode, just read the data without sending RDATA command
+        let drdy_after = self.drdy.is_low().map_err(Ads1256Error::Gpio)?;
+        log::info!("DRDY after wait: {}", !drdy_after); // Note: inverting to match your log
+                                                        // In continuous mode, just read the data without sending RDATA command
         let mut buffer = [0u8; 3];
         self.cs.set_low().map_err(Ads1256Error::Gpio)?;
         self.spi.read(&mut buffer).map_err(Ads1256Error::Spi)?;
