@@ -59,7 +59,7 @@ where
 
     // /// Cycle to next channel efficiently as per datasheet Figure 19
     pub fn cycle_channel(&mut self, channel: u8) -> Result<i32, Ads1256Error<SpiError, GpioError>> {
-        if channel > MAX_CHANNELS as u8 {
+        if channel >= MAX_CHANNELS as u8 {
             return Err(Ads1256Error::InvalidInputChannel);
         }
         self.cs.set_low().map_err(Ads1256Error::Gpio)?;
