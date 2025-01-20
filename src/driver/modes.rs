@@ -102,7 +102,9 @@ where
         if self.mode != OperatingMode::Continuous {
             return Err(Ads1256Error::InvalidState("Not in continuous mode"));
         }
-
+        // Log DRDY state before waiting
+        let drdy_before = self.drdy.is_low().map_err(Ads1256Error::Gpio)?;
+        log::info!("DRDY before wait: {}", drdy_before);
         self.wait_for_drdy()?;
 
         // In continuous mode, just read the data without sending RDATA command
