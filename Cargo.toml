@@ -10,7 +10,7 @@ categories = ["embedded", "hardware-support", "no-std"]
 
 [features]
 default = ["std"]
-std = []
+std = ["log/std"]
 defmt = ["dep:defmt"]
 ads1255 = []
 

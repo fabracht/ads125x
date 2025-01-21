@@ -1,4 +1,7 @@
-use core::{error, fmt};
+use core::fmt;
+
+#[cfg(feature = "std")]
+extern crate std;
 
 #[derive(Debug)]
 pub enum Ads1256Error<SpiError, GpioError> {
@@ -41,8 +44,8 @@ pub enum Ads1256Error<SpiError, GpioError> {
 
 impl<SpiError, GpioError> fmt::Display for Ads1256Error<SpiError, GpioError>
 where
-    SpiError: fmt::Debug + Send + Sync + 'static,
-    GpioError: fmt::Debug + Send + Sync + 'static,
+    SpiError: fmt::Debug,
+    GpioError: fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -106,12 +109,13 @@ where
     }
 }
 
-impl<SpiError, GpioError> error::Error for Ads1256Error<SpiError, GpioError>
+#[cfg(feature = "std")]
+impl<SpiError, GpioError> std::error::Error for Ads1256Error<SpiError, GpioError>
 where
-    SpiError: error::Error + Send + Sync + 'static,
-    GpioError: error::Error + Send + Sync + 'static,
+    SpiError: std::error::Error + Send + Sync + 'static,
+    GpioError: std::error::Error + Send + Sync + 'static,
 {
-    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Ads1256Error::Spi(err) => Some(err),
             Ads1256Error::Gpio(err) => Some(err),
@@ -123,8 +127,8 @@ where
 #[cfg(feature = "defmt")]
 impl<SpiError, GpioError> defmt::Format for Ads1256Error<SpiError, GpioError>
 where
-    SpiError: fmt::Debug + Send + Sync + 'static,
-    GpioError: fmt::Debug + Send + Sync + 'static,
+    SpiError: fmt::Debug,
+    GpioError: fmt::Debug,
 {
     fn format(&self, f: defmt::Formatter) {
         match self {

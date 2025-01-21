@@ -2,6 +2,9 @@
 #![doc = include_str!("../README.md")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
+#[cfg(feature = "std")]
+extern crate std;
+
 extern crate alloc;
 
 pub mod constants;
