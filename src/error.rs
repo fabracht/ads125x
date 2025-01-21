@@ -1,4 +1,4 @@
-use core::fmt;
+use core::{error, fmt};
 
 #[derive(Debug)]
 pub enum Ads1256Error<SpiError, GpioError> {
@@ -106,6 +106,20 @@ where
     }
 }
 
+impl<SpiError, GpioError> error::Error for Ads1256Error<SpiError, GpioError>
+where
+    SpiError: error::Error + Send + Sync + 'static,
+    GpioError: error::Error + Send + Sync + 'static,
+{
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+        match self {
+            Ads1256Error::Spi(err) => Some(err),
+            Ads1256Error::Gpio(err) => Some(err),
+            _ => None,
+        }
+    }
+}
+
 #[cfg(feature = "defmt")]
 impl<SpiError, GpioError> defmt::Format for Ads1256Error<SpiError, GpioError>
 where
@@ -166,21 +180,6 @@ where
             Self::NotReady => defmt::write!(f, "Device not ready"),
             Self::OperationCancelled => defmt::write!(f, "Operation cancelled"),
             _ => defmt::write!(f, "Unknown error"),
-        }
-    }
-}
-
-#[cfg(feature = "std")]
-impl<SpiError, GpioError> std::error::Error for Ads1256Error<SpiError, GpioError>
-where
-    SpiError: std::error::Error + Send + Sync + 'static,
-    GpioError: std::error::Error + Send + Sync + 'static,
-{
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Ads1256Error::Spi(err) => Some(err),
-            Ads1256Error::Gpio(err) => Some(err),
-            _ => None,
         }
     }
 }
