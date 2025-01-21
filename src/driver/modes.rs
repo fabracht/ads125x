@@ -102,13 +102,10 @@ where
         if self.mode != OperatingMode::Continuous {
             return Err(Ads1256Error::InvalidState("Not in continuous mode"));
         }
-        // Log DRDY state before waiting
-        let drdy_before = self.drdy.is_low().map_err(Ads1256Error::Gpio)?;
-        log::info!("DRDY before wait: {}", drdy_before);
+
         self.wait_for_drdy()?;
-        let drdy_after = self.drdy.is_low().map_err(Ads1256Error::Gpio)?;
-        log::info!("DRDY after wait: {}", !drdy_after); // Note: inverting to match your log
-                                                        // In continuous mode, just read the data without sending RDATA command
+
+        // In continuous mode, just read the data without sending RDATA command
         let mut buffer = [0u8; 3];
         self.cs.set_low().map_err(Ads1256Error::Gpio)?;
         self.spi.read(&mut buffer).map_err(Ads1256Error::Spi)?;
@@ -121,15 +118,6 @@ where
         } else {
             raw_value
         };
-        // Log buffer contents when we get zero
-        if value == 0 {
-            log::info!(
-                "Zero value read. Buffer: [{:02x}, {:02x}, {:02x}]",
-                buffer[0],
-                buffer[1],
-                buffer[2]
-            );
-        }
 
         Ok(value)
     }
