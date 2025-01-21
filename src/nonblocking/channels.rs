@@ -16,7 +16,7 @@ where
         &mut self,
         channel: u8,
     ) -> Result<(), Ads1256Error<SpiError, GpioError>> {
-        if channel > MAX_CHANNELS as u8 {
+        if channel >= MAX_CHANNELS as u8 {
             return Err(Ads1256Error::InvalidInputChannel);
         }
 
@@ -40,9 +40,10 @@ where
         &mut self,
         channel: u8,
     ) -> Result<i32, Ads1256Error<SpiError, GpioError>> {
-        if channel > MAX_CHANNELS as u8 {
+        if channel >= MAX_CHANNELS as u8 {
             return Err(Ads1256Error::InvalidInputChannel);
         }
+        self.cs.set_low().map_err(Ads1256Error::Gpio)?;
 
         // Wait for DRDY
         self.drdy.wait_for_low().await.map_err(Ads1256Error::Gpio)?;
@@ -57,6 +58,7 @@ where
         self.send_command(CMD_SYNC).await?;
         self.delay.delay_us(T11_DELAY).await;
         self.send_command(CMD_WAKEUP).await?;
+        self.cs.set_high().map_err(Ads1256Error::Gpio)?;
 
         // Read data from previous conversion
         let result = self.read_data().await?;
