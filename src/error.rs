@@ -41,8 +41,8 @@ pub enum Ads1256Error<SpiError, GpioError> {
 
 impl<SpiError, GpioError> fmt::Display for Ads1256Error<SpiError, GpioError>
 where
-    SpiError: fmt::Debug,
-    GpioError: fmt::Debug,
+    SpiError: fmt::Debug + Send + Sync + 'static,
+    GpioError: fmt::Debug + Send + Sync + 'static,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -109,8 +109,8 @@ where
 #[cfg(feature = "defmt")]
 impl<SpiError, GpioError> defmt::Format for Ads1256Error<SpiError, GpioError>
 where
-    SpiError: core::fmt::Debug,
-    GpioError: core::fmt::Debug,
+    SpiError: fmt::Debug + Send + Sync + 'static,
+    GpioError: fmt::Debug + Send + Sync + 'static,
 {
     fn format(&self, f: defmt::Formatter) {
         match self {
@@ -166,6 +166,21 @@ where
             Self::NotReady => defmt::write!(f, "Device not ready"),
             Self::OperationCancelled => defmt::write!(f, "Operation cancelled"),
             _ => defmt::write!(f, "Unknown error"),
+        }
+    }
+}
+
+#[cfg(feature = "std")]
+impl<SpiError, GpioError> std::error::Error for Ads1256Error<SpiError, GpioError>
+where
+    SpiError: std::error::Error + Send + Sync + 'static,
+    GpioError: std::error::Error + Send + Sync + 'static,
+{
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Ads1256Error::Spi(err) => Some(err),
+            Ads1256Error::Gpio(err) => Some(err),
+            _ => None,
         }
     }
 }
