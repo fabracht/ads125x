@@ -3,11 +3,11 @@ use super::Ads1256NonBlocking;
 use crate::constants::*;
 use crate::error::Ads1256Error;
 use embedded_hal::digital::{InputPin, OutputPin};
-use embedded_hal_async::{delay::DelayNs, digital::Wait, spi::SpiBus};
+use embedded_hal_async::{delay::DelayNs, digital::Wait, spi::SpiDevice};
 
 impl<SPI, CS, DRDY, PDWN, DELAY, SpiError, GpioError> Ads1256NonBlocking<SPI, CS, DRDY, PDWN, DELAY>
 where
-    SPI: SpiBus<Error = SpiError>,
+    SPI: SpiDevice<Error = SpiError>,
     CS: OutputPin<Error = GpioError>,
     DRDY: Wait + InputPin<Error = CS::Error>,
     PDWN: OutputPin<Error = CS::Error>,

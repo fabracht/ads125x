@@ -1,11 +1,11 @@
 // src/nonblocking/channels.rs
 use crate::{constants::*, error::Ads1256Error, nonblocking::Ads1256NonBlocking};
 use embedded_hal::digital::{InputPin, OutputPin};
-use embedded_hal_async::{delay::DelayNs, digital::Wait, spi::SpiBus};
+use embedded_hal_async::{delay::DelayNs, digital::Wait, spi::SpiDevice};
 
 impl<SPI, CS, DRDY, PDWN, DELAY, SpiError, GpioError> Ads1256NonBlocking<SPI, CS, DRDY, PDWN, DELAY>
 where
-    SPI: SpiBus<Error = SpiError>,
+    SPI: SpiDevice<Error = SpiError>,
     CS: OutputPin<Error = GpioError>,
     DRDY: Wait + InputPin<Error = GpioError>,
     PDWN: OutputPin<Error = GpioError>,
@@ -94,7 +94,7 @@ pub struct ChannelSequencer<'a, SPI, CS, DRDY, PDWN, DELAY> {
 
 impl<'a, SPI, CS, DRDY, PDWN, DELAY> ChannelSequencer<'a, SPI, CS, DRDY, PDWN, DELAY>
 where
-    SPI: SpiBus,
+    SPI: SpiDevice,
     CS: OutputPin,
     DRDY: Wait + InputPin,
     PDWN: OutputPin,
@@ -118,7 +118,7 @@ where
         &mut self,
     ) -> Option<Result<(u8, i32), Ads1256Error<SpiError, GpioError>>>
     where
-        SPI: SpiBus<Error = SpiError>,
+        SPI: SpiDevice<Error = SpiError>,
         CS: OutputPin<Error = GpioError>,
         DRDY: InputPin<Error = GpioError>,
         PDWN: OutputPin<Error = GpioError>,

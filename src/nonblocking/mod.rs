@@ -8,7 +8,7 @@ pub mod power;
 use crate::constants::*;
 use embedded_hal::digital::{InputPin, OutputPin};
 use embedded_hal_async::digital::Wait;
-use embedded_hal_async::{delay::DelayNs, spi::SpiBus};
+use embedded_hal_async::{delay::DelayNs, spi::SpiDevice};
 use modes::Mode;
 
 /// Non-blocking ADS1256 driver
@@ -27,7 +27,7 @@ pub struct Ads1256NonBlocking<SPI, CS, DRDY, PDWN, DELAY> {
 
 impl<SPI, CS, DRDY, PDWN, DELAY, SpiError, GpioError> Ads1256NonBlocking<SPI, CS, DRDY, PDWN, DELAY>
 where
-    SPI: SpiBus<Error = SpiError>,
+    SPI: SpiDevice<Error = SpiError>,
     CS: OutputPin<Error = GpioError>,
     DRDY: Wait + InputPin<Error = GpioError>,
     PDWN: OutputPin<Error = GpioError>,
