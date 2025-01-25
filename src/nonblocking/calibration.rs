@@ -1,11 +1,12 @@
 // src/nonblocking/calibration.rs
 use crate::{constants::*, error::Ads1256Error, nonblocking::Ads1256NonBlocking};
 use embedded_hal::digital::{InputPin, OutputPin};
-use embedded_hal_async::{delay::DelayNs, digital::Wait, spi::SpiDevice};
+use embedded_hal_async::{delay::DelayNs, digital::Wait, spi::SpiBus};
 
-impl<SPI, DRDY, PDWN, DELAY, SpiError, GpioError> Ads1256NonBlocking<SPI, DRDY, PDWN, DELAY>
+impl<SPI, CS, DRDY, PDWN, DELAY, SpiError, GpioError> Ads1256NonBlocking<SPI, CS, DRDY, PDWN, DELAY>
 where
-    SPI: SpiDevice<Error = SpiError>,
+    SPI: SpiBus<Error = SpiError>,
+    CS: OutputPin<Error = GpioError>,
     DRDY: Wait + InputPin<Error = GpioError>,
     PDWN: OutputPin<Error = GpioError>,
     DELAY: DelayNs,

@@ -8,12 +8,13 @@ pub mod power;
 use crate::constants::*;
 use embedded_hal::digital::{InputPin, OutputPin};
 use embedded_hal_async::digital::Wait;
-use embedded_hal_async::{delay::DelayNs, spi::SpiDevice};
+use embedded_hal_async::{delay::DelayNs, spi::SpiBus};
 use modes::Mode;
 
 /// Non-blocking ADS1256 driver
-pub struct Ads1256NonBlocking<SPI, DRDY, PDWN, DELAY> {
+pub struct Ads1256NonBlocking<SPI, CS, DRDY, PDWN, DELAY> {
     pub(crate) spi: SPI,
+    pub(crate) cs: CS,
     pub(crate) drdy: DRDY,
     pub(crate) pdwn: PDWN,
     pub(crate) delay: DELAY,
@@ -24,9 +25,10 @@ pub struct Ads1256NonBlocking<SPI, DRDY, PDWN, DELAY> {
     current_channel: Option<u8>,
 }
 
-impl<SPI, DRDY, PDWN, DELAY, SpiError, GpioError> Ads1256NonBlocking<SPI, DRDY, PDWN, DELAY>
+impl<SPI, CS, DRDY, PDWN, DELAY, SpiError, GpioError> Ads1256NonBlocking<SPI, CS, DRDY, PDWN, DELAY>
 where
-    SPI: SpiDevice<Error = SpiError>,
+    SPI: SpiBus<Error = SpiError>,
+    CS: OutputPin<Error = GpioError>,
     DRDY: Wait + InputPin<Error = GpioError>,
     PDWN: OutputPin<Error = GpioError>,
     DELAY: DelayNs,
@@ -34,6 +36,7 @@ where
     /// Creates a new non-blocking ADS1256 instance
     pub fn new(
         spi: SPI,
+        cs: CS,
         drdy: DRDY,
         pdwn: PDWN,
         delay: DELAY,
@@ -42,6 +45,7 @@ where
     ) -> Self {
         Self {
             spi,
+            cs,
             drdy,
             pdwn,
             delay,

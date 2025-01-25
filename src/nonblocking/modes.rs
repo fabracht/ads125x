@@ -2,7 +2,7 @@
 use crate::{constants::*, error::Ads1256Error, nonblocking::Ads1256NonBlocking};
 use embedded_hal::digital::{InputPin, OutputPin};
 use embedded_hal_async::digital::Wait;
-use embedded_hal_async::{delay::DelayNs, spi::SpiDevice};
+use embedded_hal_async::{delay::DelayNs, spi::SpiBus};
 
 /// ADC operation mode
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -11,9 +11,10 @@ pub enum Mode {
     Continuous,
 }
 
-impl<SPI, DRDY, PDWN, DELAY, SpiError, GpioError> Ads1256NonBlocking<SPI, DRDY, PDWN, DELAY>
+impl<SPI, CS, DRDY, PDWN, DELAY, SpiError, GpioError> Ads1256NonBlocking<SPI, CS, DRDY, PDWN, DELAY>
 where
-    SPI: SpiDevice<Error = SpiError>,
+    SPI: SpiBus<Error = SpiError>,
+    CS: OutputPin<Error = GpioError>,
     DRDY: Wait + InputPin<Error = GpioError>,
     PDWN: OutputPin<Error = GpioError>,
     DELAY: DelayNs,
@@ -83,11 +84,13 @@ where
         self.drdy.wait_for_low().await.map_err(Ads1256Error::Gpio)?;
 
         // Read the data
+        self.cs.set_low().map_err(Ads1256Error::Gpio)?;
         let mut buffer = [0u8; 3];
         self.spi
             .read(&mut buffer)
             .await
             .map_err(Ads1256Error::Spi)?;
+        self.cs.set_high().map_err(Ads1256Error::Gpio)?;
 
         // Convert to signed 24-bit value
         let raw_value = ((buffer[0] as i32) << 16) | ((buffer[1] as i32) << 8) | (buffer[2] as i32);
